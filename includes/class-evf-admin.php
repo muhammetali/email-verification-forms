@@ -126,16 +126,132 @@ class EVF_Admin {
      * Admin init
      */
     public function admin_init() {
-        // Ayarları kaydet
-        register_setting('evf_settings', 'evf_token_expiry');
-        register_setting('evf_settings', 'evf_rate_limit');
-        register_setting('evf_settings', 'evf_min_password_length');
-        register_setting('evf_settings', 'evf_require_strong_password');
-        register_setting('evf_settings', 'evf_admin_notifications');
-        register_setting('evf_settings', 'evf_redirect_after_login');
-        register_setting('evf_settings', 'evf_brand_color');
-        register_setting('evf_settings', 'evf_email_from_name');
-        register_setting('evf_settings', 'evf_email_from_email');
+        // Ayarları kaydet - sanitization callback'leri ile
+        register_setting('evf_settings', 'evf_token_expiry', array(
+            'type' => 'integer',
+            'sanitize_callback' => array($this, 'sanitize_token_expiry'),
+            'default' => 24
+        ));
+
+        register_setting('evf_settings', 'evf_rate_limit', array(
+            'type' => 'integer',
+            'sanitize_callback' => array($this, 'sanitize_rate_limit'),
+            'default' => 15
+        ));
+
+        register_setting('evf_settings', 'evf_min_password_length', array(
+            'type' => 'integer',
+            'sanitize_callback' => array($this, 'sanitize_password_length'),
+            'default' => 8
+        ));
+
+        register_setting('evf_settings', 'evf_require_strong_password', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => true
+        ));
+
+        register_setting('evf_settings', 'evf_admin_notifications', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => true
+        ));
+
+        register_setting('evf_settings', 'evf_redirect_after_login', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_url'),
+            'default' => home_url()
+        ));
+
+        register_setting('evf_settings', 'evf_brand_color', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_hex_color'),
+            'default' => '#3b82f6'
+        ));
+
+        register_setting('evf_settings', 'evf_email_from_name', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_text_field'),
+            'default' => get_bloginfo('name')
+        ));
+
+        register_setting('evf_settings', 'evf_email_from_email', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_email'),
+            'default' => get_option('admin_email')
+        ));
+    }
+
+    /**
+     * Sanitization callback functions
+     */
+
+    /**
+     * Token expiry sanitization
+     */
+    public function sanitize_token_expiry($value) {
+        $value = intval($value);
+        // 1 saat ile 168 saat (7 gün) arası
+        return ($value >= 1 && $value <= 168) ? $value : 24;
+    }
+
+    /**
+     * Rate limit sanitization
+     */
+    public function sanitize_rate_limit($value) {
+        $value = intval($value);
+        // 1 dakika ile 60 dakika arası
+        return ($value >= 1 && $value <= 60) ? $value : 15;
+    }
+
+    /**
+     * Password length sanitization
+     */
+    public function sanitize_password_length($value) {
+        $value = intval($value);
+        // 6 ile 50 karakter arası
+        return ($value >= 6 && $value <= 50) ? $value : 8;
+    }
+
+    /**
+     * Boolean sanitization
+     */
+    public function sanitize_boolean($value) {
+        return (bool) $value;
+    }
+
+    /**
+     * URL sanitization
+     */
+    public function sanitize_url($value) {
+        $sanitized = esc_url_raw($value);
+        // Eğer geçerli URL değilse home_url() döndür
+        return filter_var($sanitized, FILTER_VALIDATE_URL) ? $sanitized : home_url();
+    }
+
+    /**
+     * Hex color sanitization
+     */
+    public function sanitize_hex_color($value) {
+        $sanitized = sanitize_hex_color($value);
+        // Eğer geçerli hex renk değilse varsayılan rengi döndür
+        return $sanitized ? $sanitized : '#3b82f6';
+    }
+
+    /**
+     * Text field sanitization
+     */
+    public function sanitize_text_field($value) {
+        return sanitize_text_field($value);
+    }
+
+    /**
+     * Email sanitization
+     */
+    public function sanitize_email($value) {
+        $sanitized = sanitize_email($value);
+        // Eğer geçerli email değilse admin email'i döndür
+        return is_email($sanitized) ? $sanitized : get_option('admin_email');
     }
     
     /**

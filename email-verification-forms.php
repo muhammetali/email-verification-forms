@@ -4,16 +4,15 @@
  * Plugin URI: https://wordpress.org/plugins/email-verification-forms/
  * Description: Professional email verification system for WordPress and WooCommerce user registration with customizable forms, AJAX support, and comprehensive admin dashboard.
  * Version: 1.0.0
- * Author: Your Name
- * Author URI: https://your-website.com
+ * Author:  Muhammet Ali
+ * Author URI: https://fixmob.net
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: email-verification-forms
  * Domain Path: /languages
  * Requires at least: 5.0
- * Tested up to: 6.4
+ * Tested up to: 6.8
  * Requires PHP: 7.4
- * Network: false
  *
  * Email Verification Forms is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

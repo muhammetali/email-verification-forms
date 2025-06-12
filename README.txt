@@ -1,9 +1,9 @@
 === Email Verification Forms ===
-Contributors: yourusername
-Donate link: https://your-website.com/donate
+Contributors: erbilisim
+Donate link: https://fixmob.net/donate
 Tags: email verification, user registration, security, woocommerce, forms
 Requires at least: 5.0
-Tested up to: 6.4
+Tested up to: 6.8
 Requires PHP: 7.4
 Stable tag: 1.0.0
 License: GPLv2 or later
@@ -195,14 +195,14 @@ Initial release of Email Verification Forms. Install now to enhance your site's 
 For support, feature requests, or bug reports, please visit:
 
 * **Plugin Support:** [WordPress.org Support Forum](https://wordpress.org/support/plugin/email-verification-forms/)
-* **Documentation:** [Plugin Documentation](https://your-website.com/docs/email-verification-forms/)
-* **Feature Requests:** [GitHub Issues](https://github.com/yourusername/email-verification-forms/issues)
+* **Documentation:** [Plugin Documentation](https://fixmob.net/docs/email-verification-forms/)
+* **Feature Requests:** [GitHub Issues](https://github.com/muhammetali/email-verification-forms/issues)
 
 == Contributing ==
 
 This plugin is open source and welcomes contributions:
 
-* **GitHub Repository:** [https://github.com/yourusername/email-verification-forms](https://github.com/yourusername/email-verification-forms)
+* **GitHub Repository:** [https://github.com/muhammetali/email-verification-forms](https://github.com/muhammetali/email-verification-forms)
 * **Translate:** Help translate the plugin at [translate.wordpress.org](https://translate.wordpress.org/projects/wp-plugins/email-verification-forms)
 
 == Privacy Policy ==
@@ -214,7 +214,7 @@ Email Verification Forms takes privacy seriously:
 * **Data Retention:** Configurable cleanup options available
 * **Third Parties:** No data shared with external services
 
-For detailed privacy information, see our [Privacy Policy](https://your-website.com/privacy).
+For detailed privacy information, see our [Privacy Policy](https://fixmob.net/privacy).
 
 == License ==
 
