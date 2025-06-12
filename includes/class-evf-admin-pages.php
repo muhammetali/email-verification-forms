@@ -125,8 +125,8 @@ class EVF_Admin_Pages {
                                     </span>
                             </td>
                             <td><?php echo esc_html($registration->ip_address); ?></td>
-                            <td><?php echo esc_html(date('d.m.Y H:i', strtotime($registration->created_at))); ?></td>
-                            <td><?php echo esc_html(date('d.m.Y H:i', strtotime($registration->expires_at))); ?></td>
+                            <td><?php echo esc_html(gmdate('d.m.Y H:i', strtotime($registration->created_at))); ?></td>
+                            <td><?php echo esc_html(gmdate('d.m.Y H:i', strtotime($registration->expires_at))); ?></td>
                             <td>
                                 <div class="evf-actions">
                                     <?php if ($registration->status === 'pending'): ?>
@@ -244,7 +244,7 @@ class EVF_Admin_Pages {
                                         <?php echo esc_html($log->status === 'sent' ? __('Gönderildi', 'email-verification-forms') : __('Başarısız', 'email-verification-forms')); ?>
                                     </span>
                             </td>
-                            <td><?php echo esc_html(date('d.m.Y H:i:s', strtotime($log->created_at))); ?></td>
+                            <td><?php echo esc_html(gmdate('d.m.Y H:i:s', strtotime($log->created_at))); ?></td>
                             <td>
                                 <?php if ($log->error_message): ?>
                                     <span class="evf-error-message" title="<?php echo esc_attr($log->error_message); ?>">

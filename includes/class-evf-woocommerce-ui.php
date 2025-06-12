@@ -57,7 +57,7 @@ class EVF_WooCommerce_UI {
     public function add_verification_menu_item($menu_items) {
         // Sadece unverified kullanıcılar için göster
         if (!evf_is_user_verified()) {
-            $menu_items['email-verification'] = __('E-posta Doğrulama', 'email-verification-forms');
+            $menu_items['email-verification'] = esc_html__('E-posta Doğrulama', 'email-verification-forms');
         }
 
         return $menu_items;
@@ -78,8 +78,8 @@ class EVF_WooCommerce_UI {
         if ($is_verified) {
             // Zaten doğrulanmış
             echo '<div class="woocommerce-message woocommerce-message--info woocommerce-Message woocommerce-Message--info">';
-            echo '<strong>✅ ' . __('E-posta adresiniz doğrulanmış!', 'email-verification-forms') . '</strong><br>';
-            echo __('Hesabınızın tüm özellikleri aktif.', 'email-verification-forms');
+            echo '<strong>✅ ' . esc_html__('E-posta adresiniz doğrulanmış!', 'email-verification-forms') . '</strong><br>';
+            echo esc_html__('Hesabınızın tüm özellikleri aktif.', 'email-verification-forms');
             echo '</div>';
             return;
         }
@@ -88,6 +88,7 @@ class EVF_WooCommerce_UI {
         $user = wp_get_current_user();
         $last_sent = get_user_meta($user_id, 'evf_verification_sent_at', true);
         $can_resend = true;
+        $wait_time = 0;
 
         if ($last_sent) {
             $time_diff = current_time('timestamp') - $last_sent;
@@ -101,26 +102,26 @@ class EVF_WooCommerce_UI {
 
         // Status box
         echo '<div class="woocommerce-message woocommerce-message--info woocommerce-Message woocommerce-Message--info evf-verification-notice">';
-        echo '<h3 style="margin-top: 0;">🛡️ ' . __('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</h3>';
+        echo '<h3 style="margin-top: 0;">🛡️ ' . esc_html__('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</h3>';
         /* translators: %s: User email address (wrapped in <strong> tags) */
-        echo '<p>' . sprintf(__('Hesabınızın güvenliği için %s adresini doğrulamanız gerekmektedir.', 'email-verification-forms'), '<strong>' . esc_html($user->user_email) . '</strong>') . '</p>';
+        echo '<p>' . sprintf(esc_html__('Hesabınızın güvenliği için %s adresini doğrulamanız gerekmektedir.', 'email-verification-forms'), '<strong>' . esc_html($user->user_email) . '</strong>') . '</p>';
         echo '</div>';
 
         // Resend section
         echo '<div class="evf-resend-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 4px;">';
-        echo '<h4>' . __('Doğrulama E-postası', 'email-verification-forms') . '</h4>';
+        echo '<h4>' . esc_html__('Doğrulama E-postası', 'email-verification-forms') . '</h4>';
 
         if ($can_resend) {
-            echo '<p>' . __('E-posta gelmedi mi? Yeni bir doğrulama e-postası gönderebilirsiniz.', 'email-verification-forms') . '</p>';
-            echo '<button type="button" class="button alt evf-resend-verification" data-user-id="' . $user_id . '">';
-            echo '📧 ' . __('Doğrulama E-postası Gönder', 'email-verification-forms');
+            echo '<p>' . esc_html__('E-posta gelmedi mi? Yeni bir doğrulama e-postası gönderebilirsiniz.', 'email-verification-forms') . '</p>';
+            echo '<button type="button" class="button alt evf-resend-verification" data-user-id="' . esc_attr($user_id) . '">';
+            echo '📧 ' . esc_html__('Doğrulama E-postası Gönder', 'email-verification-forms');
             echo '</button>';
         } else {
             /* translators: %d: Number of minutes to wait */
-            echo '<p style="color: #666;">' . sprintf(__('Yeni e-posta göndermek için %d dakika beklemeniz gerekiyor.', 'email-verification-forms'), $wait_time) . '</p>';
+            echo '<p style="color: #666;">' . sprintf(esc_html__('Yeni e-posta göndermek için %d dakika beklemeniz gerekiyor.', 'email-verification-forms'), esc_html($wait_time)) . '</p>';
             echo '<button type="button" class="button" disabled>';
             /* translators: %d: Number of minutes to wait */
-            echo '⏳ ' . sprintf(__('%d dakika bekleyin', 'email-verification-forms'), $wait_time);
+            echo '⏳ ' . sprintf(esc_html__('%d dakika bekleyin', 'email-verification-forms'), esc_html($wait_time));
             echo '</button>';
         }
 
@@ -128,11 +129,11 @@ class EVF_WooCommerce_UI {
 
         // Help section
         echo '<div class="evf-help-section" style="margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">';
-        echo '<h4 style="margin-top: 0;">💡 ' . __('E-posta gelmedi mi?', 'email-verification-forms') . '</h4>';
+        echo '<h4 style="margin-top: 0;">💡 ' . esc_html__('E-posta gelmedi mi?', 'email-verification-forms') . '</h4>';
         echo '<ul style="margin: 10px 0 0 20px;">';
-        echo '<li>' . __('Spam/Junk klasörünüzü kontrol edin', 'email-verification-forms') . '</li>';
-        echo '<li>' . __('E-posta adresinizi doğru yazdığınızdan emin olun', 'email-verification-forms') . '</li>';
-        echo '<li>' . __('Birkaç dakika bekleyin, e-posta gelmesi zaman alabilir', 'email-verification-forms') . '</li>';
+        echo '<li>' . esc_html__('Spam/Junk klasörünüzü kontrol edin', 'email-verification-forms') . '</li>';
+        echo '<li>' . esc_html__('E-posta adresinizi doğru yazdığınızdan emin olun', 'email-verification-forms') . '</li>';
+        echo '<li>' . esc_html__('Birkaç dakika bekleyin, e-posta gelmesi zaman alabilir', 'email-verification-forms') . '</li>';
         echo '</ul>';
         echo '</div>';
 
@@ -151,12 +152,12 @@ class EVF_WooCommerce_UI {
                     $btn.prop('disabled', true).html('📤 Gönderiliyor...');
 
                     $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        url: <?php echo wp_json_encode(admin_url('admin-ajax.php')); ?>,
                         type: 'POST',
                         data: {
                             action: 'evf_wc_resend_verification',
                             user_id: userId,
-                            nonce: '<?php echo wp_create_nonce('evf_wc_resend'); ?>'
+                            nonce: <?php echo wp_json_encode(wp_create_nonce('evf_wc_resend')); ?>
                         },
                         success: function(response) {
                             if (response.success) {
@@ -192,13 +193,13 @@ class EVF_WooCommerce_UI {
         echo '<div style="display: flex; align-items: center; gap: 15px;">';
         echo '<div style="font-size: 24px;">🛡️</div>';
         echo '<div style="flex: 1;">';
-        echo '<strong>' . __('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</strong><br>';
+        echo '<strong>' . esc_html__('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</strong><br>';
         /* translators: %s: User email address (wrapped in <strong> tags) */
-        echo sprintf(__('Hesabınızın güvenliği için %s adresini doğrulamanız gerekmektedir.', 'email-verification-forms'), '<strong>' . esc_html($user->user_email) . '</strong>');
+        echo sprintf(esc_html__('Hesabınızın güvenliği için %s adresini doğrulamanız gerekmektedir.', 'email-verification-forms'), '<strong>' . esc_html($user->user_email) . '</strong>');
         echo '</div>';
         echo '<div>';
         echo '<a href="' . esc_url(wc_get_account_endpoint_url('email-verification')) . '" class="button alt" style="white-space: nowrap;">';
-        echo '📧 ' . __('Doğrula', 'email-verification-forms');
+        echo '📧 ' . esc_html__('Doğrula', 'email-verification-forms');
         echo '</a>';
         echo '</div>';
         echo '</div>';
@@ -211,8 +212,8 @@ class EVF_WooCommerce_UI {
     public function add_registration_notice() {
         echo '<div class="evf-registration-notice" style="margin: 15px 0; padding: 15px; background: #e8f4fd; border-left: 4px solid #2196f3; border-radius: 4px;">';
         echo '<p style="margin: 0; color: #1976d2; font-size: 14px;">';
-        echo '<strong>🛡️ ' . __('Güvenlik Bildirimi:', 'email-verification-forms') . '</strong> ';
-        echo __('Kayıt işlemi sonrasında e-posta adresinize bir doğrulama bağlantısı gönderilecektir.', 'email-verification-forms');
+        echo '<strong>🛡️ ' . esc_html__('Güvenlik Bildirimi:', 'email-verification-forms') . '</strong> ';
+        echo esc_html__('Kayıt işlemi sonrasında e-posta adresinize bir doğrulama bağlantısı gönderilecektir.', 'email-verification-forms');
         echo '</p>';
         echo '</div>';
     }
@@ -233,9 +234,9 @@ class EVF_WooCommerce_UI {
 
         if (in_array($current_endpoint, $restricted_endpoints)) {
             echo '<div class="woocommerce-message woocommerce-message--error woocommerce-Message woocommerce-Message--error">';
-            echo '<strong>🔒 ' . __('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</strong><br>';
-            echo __('Bu bölüme erişmek için önce e-posta adresinizi doğrulamanız gerekmektedir.', 'email-verification-forms') . ' ';
-            echo '<a href="' . esc_url(wc_get_account_endpoint_url('email-verification')) . '">' . __('Şimdi Doğrula', 'email-verification-forms') . '</a>';
+            echo '<strong>🔒 ' . esc_html__('E-posta Doğrulaması Gerekli', 'email-verification-forms') . '</strong><br>';
+            echo esc_html__('Bu bölüme erişmek için önce e-posta adresinizi doğrulamanız gerekmektedir.', 'email-verification-forms') . ' ';
+            echo '<a href="' . esc_url(wc_get_account_endpoint_url('email-verification')) . '">' . esc_html__('Şimdi Doğrula', 'email-verification-forms') . '</a>';
             echo '</div>';
 
             // İçeriği gizle
@@ -268,7 +269,7 @@ class EVF_WooCommerce_UI {
      */
     public function restrict_profile_updates($errors) {
         if (!evf_is_user_verified()) {
-            $errors->add('evf_verification_required', __('Profil bilgilerinizi güncellemek için önce e-posta doğrulaması yapmanız gerekmektedir.', 'email-verification-forms'));
+            $errors->add('evf_verification_required', esc_html__('Profil bilgilerinizi güncellemek için önce e-posta doğrulaması yapmanız gerekmektedir.', 'email-verification-forms'));
         }
     }
 
@@ -283,21 +284,21 @@ class EVF_WooCommerce_UI {
         $is_verified = evf_is_user_verified($user->ID);
         $verification_sent = get_user_meta($user->ID, 'evf_verification_sent_at', true);
         ?>
-        <h3><?php _e('Email Verification Status', 'email-verification-forms'); ?></h3>
+        <h3><?php esc_html_e('Email Verification Status', 'email-verification-forms'); ?></h3>
         <table class="form-table">
             <tr>
-                <th><label><?php _e('E-posta Doğrulandı', 'email-verification-forms'); ?></label></th>
+                <th><label><?php esc_html_e('E-posta Doğrulandı', 'email-verification-forms'); ?></label></th>
                 <td>
                     <label>
                         <input type="checkbox" name="evf_email_verified" value="1" <?php checked($is_verified); ?> />
-                        <?php _e('E-posta adresi doğrulanmış', 'email-verification-forms'); ?>
+                        <?php esc_html_e('E-posta adresi doğrulanmış', 'email-verification-forms'); ?>
                     </label>
                     <br>
                     <?php if ($verification_sent): ?>
                         <small style="color: #666;">
                             <?php
                             /* translators: %s: Formatted date and time */
-                            printf(__('Son doğrulama: %s', 'email-verification-forms'), date('d.m.Y H:i', $verification_sent));
+                            printf(esc_html__('Son doğrulama: %s', 'email-verification-forms'), esc_html(date_i18n('d.m.Y H:i', $verification_sent)));
                             ?>
                         </small>
                     <?php endif; ?>
@@ -315,6 +316,11 @@ class EVF_WooCommerce_UI {
             return;
         }
 
+        // Nonce verification for form security
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'update-user_' . $user_id)) {
+            return;
+        }
+
         $verified = isset($_POST['evf_email_verified']) ? 1 : 0;
         update_user_meta($user_id, 'evf_email_verified', $verified);
 
@@ -327,8 +333,14 @@ class EVF_WooCommerce_UI {
      * AJAX: Verification email'i yeniden gönder
      */
     public function ajax_resend_verification() {
-        if (!wp_verify_nonce($_POST['nonce'], 'evf_wc_resend')) {
+        // Nonce verification
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'evf_wc_resend')) {
             wp_send_json_error('invalid_nonce');
+        }
+
+        // Validate and sanitize user ID
+        if (!isset($_POST['user_id'])) {
+            wp_send_json_error('missing_user_id');
         }
 
         $user_id = intval($_POST['user_id']);
@@ -352,10 +364,53 @@ class EVF_WooCommerce_UI {
         }
 
         // Yeni verification başlat - Main WooCommerce sınıfını kullan
-        EVF_WooCommerce::instance()->start_email_verification($user_id, $user->user_email, array(
-            'context' => 'resend'
-        ));
+        if (class_exists('EVF_WooCommerce')) {
+            EVF_WooCommerce::instance()->start_email_verification($user_id, $user->user_email, array(
+                'context' => 'resend'
+            ));
+        }
 
         wp_send_json_success();
+    }
+
+    /**
+     * Helper method: Get verification message based on context
+     */
+    private function get_verification_message($context = 'default') {
+        $messages = array(
+            'default' => __('E-posta doğrulaması gerekli', 'email-verification-forms'),
+            'dashboard' => __('Hesabınızın güvenliği için e-posta doğrulaması yapın', 'email-verification-forms'),
+            'restricted' => __('Bu bölüme erişmek için e-posta doğrulaması gerekli', 'email-verification-forms'),
+        );
+
+        return isset($messages[$context]) ? $messages[$context] : $messages['default'];
+    }
+
+    /**
+     * Helper method: Get user verification status with caching
+     */
+    private function get_user_verification_status($user_id) {
+        $cache_key = 'evf_user_verification_' . $user_id;
+        $status = wp_cache_get($cache_key);
+
+        if (false === $status) {
+            $status = array(
+                'is_verified' => evf_is_user_verified($user_id),
+                'last_sent' => get_user_meta($user_id, 'evf_verification_sent_at', true),
+                'verified_at' => get_user_meta($user_id, 'evf_verified_at', true)
+            );
+
+            wp_cache_set($cache_key, $status, '', 300); // 5 minutes cache
+        }
+
+        return $status;
+    }
+
+    /**
+     * Clear user verification cache
+     */
+    public function clear_user_verification_cache($user_id) {
+        $cache_key = 'evf_user_verification_' . $user_id;
+        wp_cache_delete($cache_key);
     }
 }

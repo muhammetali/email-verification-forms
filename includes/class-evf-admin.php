@@ -329,7 +329,7 @@ class EVF_Admin {
 
         // CSV header oluştur
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="evf-registrations-' . date('Y-m-d') . '.csv"');
+        header('Content-Disposition: attachment; filename="evf-registrations-' . gmdate('Y-m-d') . '.csv"');
 
         $output = fopen('php://output', 'w');
 

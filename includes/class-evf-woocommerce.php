@@ -178,7 +178,7 @@ class EVF_WooCommerce {
         $table_name = $wpdb->prefix . 'evf_pending_registrations';
 
         $token = wp_generate_password(32, false);
-        $expires_at = date('Y-m-d H:i:s', strtotime('+' . get_option('evf_token_expiry', 24) . ' hours'));
+        $expires_at = gmdate('Y-m-d H:i:s', strtotime('+' . get_option('evf_token_expiry', 24) . ' hours'));
 
         // Debug log
         if (defined('WP_DEBUG') && WP_DEBUG) {
