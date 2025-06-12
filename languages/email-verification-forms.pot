@@ -1,0 +1,301 @@
+# Copyright (C) 2024 Email Verification Forms
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Email Verification Forms 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/email-verification-forms\n"
+"POT-Creation-Date: 2024-12-01 12:00:00+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: email-verification-forms\n"
+
+#. Plugin Name of the plugin
+msgid "Email Verification Forms"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://wordpress.org/plugins/email-verification-forms/"
+msgstr ""
+
+#. Description of the plugin
+msgid "Professional email verification system for WordPress and WooCommerce user registration with customizable forms, AJAX support, and comprehensive admin dashboard."
+msgstr ""
+
+#. Author of the plugin
+msgid "Your Name"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://your-website.com"
+msgstr ""
+
+#: includes/class-evf-admin.php:50
+msgid "Email Verification"
+msgstr ""
+
+#: includes/class-evf-admin.php:51
+msgid "Dashboard"
+msgstr ""
+
+#: includes/class-evf-admin.php:52
+msgid "Registrations"
+msgstr ""
+
+#: includes/class-evf-admin.php:53
+msgid "Email Logs"
+msgstr ""
+
+#: includes/class-evf-admin.php:54
+msgid "Settings"
+msgstr ""
+
+#: includes/class-evf-admin.php:100
+msgid "Email Verification Dashboard"
+msgstr ""
+
+#: includes/class-evf-admin.php:110
+msgid "Statistics"
+msgstr ""
+
+#: includes/class-evf-admin.php:115
+msgid "Total Registrations"
+msgstr ""
+
+#: includes/class-evf-admin.php:120
+msgid "Verified Users"
+msgstr ""
+
+#: includes/class-evf-admin.php:125
+msgid "Pending Verification"
+msgstr ""
+
+#: includes/class-evf-admin.php:130
+msgid "Expired Tokens"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:200
+msgid "[%s] E-posta Adresinizi Doğrulayın"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:250
+msgid "Siparişiniz başarıyla alındı. Hesabınızın güvenliği için e-posta adresinizi doğrulamanız gerekmektedir."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:300
+msgid "E-posta Doğrulaması"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:350
+msgid "Merhaba %s,"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:380
+msgid "E-postamı Doğrula"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:420
+msgid "Hesabınız tam güvenlik altında"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:421
+msgid "Tüm özellikler aktif"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:422
+msgid "Önemli bildirimleri kaçırmayın"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:423
+msgid "VIP müşteri desteği"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:450
+msgid "Bu bağlantı %d saat geçerlidir. Süre dolmadan önce doğrulamayı tamamlayın."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:500
+msgid "E-posta Doğrulaması Gerekli"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:550
+msgid "Hesabınızın güvenliği için %s adresini doğrulamanız gerekmektedir."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:600
+msgid "Doğrulama E-postası"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:650
+msgid "E-posta gelmedi mi? Yeni bir doğrulama e-postası gönderebilirsiniz."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:700
+msgid "Doğrulama E-postası Gönder"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:750
+msgid "Yeni e-posta göndermek için %d dakika beklemeniz gerekiyor."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:800
+msgid "E-posta gelmedi mi?"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:850
+msgid "Spam/Junk klasörünüzü kontrol edin"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:851
+msgid "E-posta adresinizi doğru yazdığınızdan emin olun"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:852
+msgid "Birkaç dakika bekleyin, e-posta gelmesi zaman alabilir"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:900
+msgid "Güvenlik Bildirimi:"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:901
+msgid "Kayıt işlemi sonrasında e-posta adresinize bir doğrulama bağlantısı gönderilecektir."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:950
+msgid "E-posta doğrulaması yapmanız gerekmektedir."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:951
+msgid "Şimdi Doğrula"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1000
+msgid "Profil bilgilerinizi güncellemek için önce e-posta doğrulaması yapmanız gerekmektedir."
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1050
+msgid "Email Verification Status"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1100
+msgid "E-posta Doğrulandı"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1150
+msgid "E-posta adresi doğrulanmış"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1200
+msgid "Son doğrulama: %s"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1250
+msgid "[%s] Yeni WooCommerce Müşteri Kaydı"
+msgstr ""
+
+#: includes/class-evf-woocommerce.php:1300
+msgid "Sipariş ID: %s<br>"
+msgstr ""
+
+#: templates/password-setup.php:50
+msgid "Parolanızı Belirleyin"
+msgstr ""
+
+#: templates/password-setup.php:60
+msgid "Merhaba %s"
+msgstr ""
+
+#: templates/password-setup.php:61
+msgid "Hesabınızın güvenliği için lütfen yeni bir parola belirleyin."
+msgstr ""
+
+#: templates/password-setup.php:70
+msgid "Yeni Parola"
+msgstr ""
+
+#: templates/password-setup.php:80
+msgid "Parola Tekrar"
+msgstr ""
+
+#: templates/password-setup.php:90
+msgid "En az %d karakter, büyük harf, küçük harf ve rakam içermelidir."
+msgstr ""
+
+#: templates/password-setup.php:100
+msgid "Hesabımı Aktifleştir"
+msgstr ""
+
+#: templates/password-setup.php:110
+msgid "Parola kaydediliyor..."
+msgstr ""
+
+#: templates/password-setup.php:120
+msgid "Güvenlik:"
+msgstr ""
+
+#: templates/password-setup.php:121
+msgid "Parolanız şifrelenerek saklanır ve hiçbir zaman görüntülenemez."
+msgstr ""
+
+#: templates/registration-form.php:50
+msgid "Hesap Oluştur"
+msgstr ""
+
+#: templates/registration-form.php:60
+msgid "E-posta Adresiniz"
+msgstr ""
+
+#: templates/registration-form.php:70
+msgid "Geçerli bir e-posta adresi giriniz"
+msgstr ""
+
+#: templates/registration-form.php:80
+msgid "Devam Et"
+msgstr ""
+
+#: templates/registration-form.php:90
+msgid "Zaten hesabınız var mı?"
+msgstr ""
+
+#: templates/registration-form.php:91
+msgid "Giriş Yapın"
+msgstr ""
+
+#: assets/js/evf-frontend.js:50
+msgid "Lütfen geçerli bir e-posta adresi giriniz."
+msgstr ""
+
+#: assets/js/evf-frontend.js:100
+msgid "Bir hata oluştu. Lütfen tekrar deneyin."
+msgstr ""
+
+#: assets/js/evf-frontend.js:150
+msgid "E-posta gönderiliyor..."
+msgstr ""
+
+#: assets/js/evf-frontend.js:200
+msgid "Çok Zayıf"
+msgstr ""
+
+#: assets/js/evf-frontend.js:201
+msgid "Zayıf"
+msgstr ""
+
+#: assets/js/evf-frontend.js:202
+msgid "Orta"
+msgstr ""
+
+#: assets/js/evf-frontend.js:203
+msgid "Güçlü"
+msgstr ""
+
+#: assets/js/evf-frontend.js:204
+msgid "Çok Güçlü"
+msgstr ""
