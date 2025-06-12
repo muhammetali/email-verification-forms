@@ -1,0 +1,684 @@
+/* Email Verification Forms - Frontend Styles */
+
+/* CSS Variables */
+:root {
+    --evf-primary: #3b82f6;
+    --evf-primary-hover: #2563eb;
+    --evf-primary-dark: #1d4ed8;
+    --evf-success: #10b981;
+    --evf-success-light: #d1fae5;
+    --evf-error: #ef4444;
+    --evf-error-light: #fee2e2;
+    --evf-warning: #f59e0b;
+    --evf-warning-light: #fef3c7;
+    --evf-gray-50: #f9fafb;
+    --evf-gray-100: #f3f4f6;
+    --evf-gray-200: #e5e7eb;
+    --evf-gray-300: #d1d5db;
+    --evf-gray-400: #9ca3af;
+    --evf-gray-500: #6b7280;
+    --evf-gray-600: #4b5563;
+    --evf-gray-700: #374151;
+    --evf-gray-800: #1f2937;
+    --evf-gray-900: #111827;
+    --evf-white: #ffffff;
+    --evf-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --evf-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --evf-border-radius: 8px;
+    --evf-transition: all 0.2s ease-in-out;
+}
+
+/* Base Styles */
+.evf-container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Registration Form Styles */
+.evf-registration-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--evf-primary), #6366f1);
+    padding: 2rem 1rem;
+}
+
+.evf-registration-card {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow-lg);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    overflow: hidden;
+}
+
+.evf-registration-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--evf-primary), #6366f1);
+}
+
+/* Progress Bar */
+.evf-progress-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.evf-progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 25px;
+    right: 25px;
+    height: 2px;
+    background: var(--evf-gray-200);
+    z-index: 1;
+}
+
+.evf-progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.evf-progress-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--evf-gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--evf-gray-500);
+    transition: var(--evf-transition);
+}
+
+.evf-progress-step.active .evf-progress-circle {
+    background: var(--evf-primary);
+    color: var(--evf-white);
+}
+
+.evf-progress-step.completed .evf-progress-circle {
+    background: var(--evf-success);
+    color: var(--evf-white);
+}
+
+.evf-progress-label {
+    font-size: 0.75rem;
+    color: var(--evf-gray-500);
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.evf-progress-step.active .evf-progress-label {
+    color: var(--evf-primary);
+    font-weight: 600;
+}
+
+/* Form Header */
+.evf-form-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.evf-form-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--evf-gray-900);
+    margin: 0 0 0.5rem 0;
+}
+
+.evf-form-subtitle {
+    color: var(--evf-gray-600);
+    font-size: 0.95rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Form Fields */
+.evf-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.evf-label {
+    display: block;
+    font-weight: 600;
+    color: var(--evf-gray-700);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.evf-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--evf-gray-200);
+    border-radius: var(--evf-border-radius);
+    font-size: 1rem;
+    transition: var(--evf-transition);
+    background: var(--evf-white);
+    box-sizing: border-box;
+}
+
+.evf-input:focus {
+    outline: none;
+    border-color: var(--evf-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.evf-input.error {
+    border-color: var(--evf-error);
+}
+
+.evf-input.success {
+    border-color: var(--evf-success);
+}
+
+/* Password Input with Strength Meter */
+.evf-password-wrapper {
+    position: relative;
+}
+
+.evf-password-strength {
+    margin-top: 0.5rem;
+}
+
+.evf-strength-bar {
+    height: 4px;
+    background: var(--evf-gray-200);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.evf-strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: var(--evf-transition);
+    border-radius: 2px;
+}
+
+.evf-strength-fill.weak {
+    background: var(--evf-error);
+    width: 25%;
+}
+
+.evf-strength-fill.medium {
+    background: var(--evf-warning);
+    width: 50%;
+}
+
+.evf-strength-fill.strong {
+    background: var(--evf-success);
+    width: 75%;
+}
+
+.evf-strength-fill.very-strong {
+    background: var(--evf-success);
+    width: 100%;
+}
+
+.evf-strength-text {
+    font-size: 0.75rem;
+    color: var(--evf-gray-500);
+}
+
+/* Buttons */
+.evf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: var(--evf-border-radius);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--evf-transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.evf-btn-primary {
+    background: linear-gradient(135deg, var(--evf-primary), var(--evf-primary-dark));
+    color: var(--evf-white);
+    box-shadow: var(--evf-shadow);
+}
+
+.evf-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+.evf-btn-primary:active {
+    transform: translateY(0);
+}
+
+.evf-btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.evf-btn-secondary {
+    background: var(--evf-gray-100);
+    color: var(--evf-gray-700);
+    border: 1px solid var(--evf-gray-300);
+}
+
+.evf-btn-secondary:hover:not(:disabled) {
+    background: var(--evf-gray-200);
+}
+
+.evf-btn-full {
+    width: 100%;
+}
+
+/* Loading Spinner */
+.evf-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: evf-spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes evf-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Messages */
+.evf-message {
+    padding: 1rem;
+    border-radius: var(--evf-border-radius);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    display: none;
+}
+
+.evf-message.show {
+    display: block;
+    animation: evf-slide-down 0.3s ease-out;
+}
+
+.evf-message.success {
+    background: var(--evf-success-light);
+    color: #065f46;
+    border: 1px solid var(--evf-success);
+}
+
+.evf-message.error {
+    background: var(--evf-error-light);
+    color: #991b1b;
+    border: 1px solid var(--evf-error);
+}
+
+.evf-message.warning {
+    background: var(--evf-warning-light);
+    color: #92400e;
+    border: 1px solid var(--evf-warning);
+}
+
+@keyframes evf-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Login Page Customization */
+body.login {
+    background: linear-gradient(135deg, var(--evf-primary), #6366f1);
+}
+
+body.login #login {
+    padding: 2rem 0;
+}
+
+body.login #loginform {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow-lg);
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+body.login #loginform::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--evf-primary), #6366f1);
+}
+
+body.login .login-form-container {
+    padding: 0;
+}
+
+/* Password Setup Page */
+.evf-password-setup-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--evf-success), #059669);
+    padding: 2rem 1rem;
+}
+
+.evf-password-setup-card {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow-lg);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    overflow: hidden;
+}
+
+.evf-password-setup-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--evf-success), #059669);
+}
+
+/* Success Page */
+.evf-success-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--evf-success), #059669);
+    padding: 2rem 1rem;
+}
+
+.evf-success-card {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow-lg);
+    padding: 3rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.evf-success-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--evf-success), #059669);
+}
+
+.evf-success-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--evf-success), #059669);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--evf-white);
+    font-size: 2rem;
+}
+
+.evf-success-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--evf-gray-900);
+    margin: 0 0 1rem 0;
+}
+
+.evf-success-message {
+    color: var(--evf-gray-600);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+/* Error Page */
+.evf-error-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--evf-error), #dc2626);
+    padding: 2rem 1rem;
+}
+
+.evf-error-card {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow-lg);
+    padding: 3rem 2.5rem;
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.evf-error-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--evf-error), #dc2626);
+}
+
+.evf-error-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--evf-error), #dc2626);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: var(--evf-white);
+    font-size: 2rem;
+}
+
+/* Shortcode Form */
+.evf-shortcode-form {
+    background: var(--evf-white);
+    border-radius: var(--evf-border-radius);
+    box-shadow: var(--evf-shadow);
+    padding: 2rem;
+    margin: 2rem 0;
+    max-width: 500px;
+}
+
+/* Utilities */
+.evf-text-center {
+    text-align: center;
+}
+
+.evf-text-left {
+    text-align: left;
+}
+
+.evf-text-right {
+    text-align: right;
+}
+
+.evf-mt-4 {
+    margin-top: 1rem;
+}
+
+.evf-mb-4 {
+    margin-bottom: 1rem;
+}
+
+.evf-hidden {
+    display: none;
+}
+
+.evf-visible {
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .evf-registration-card,
+    .evf-password-setup-card,
+    .evf-success-card,
+    .evf-error-card {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+    }
+    
+    .evf-form-title {
+        font-size: 1.5rem;
+    }
+    
+    .evf-success-title {
+        font-size: 1.625rem;
+    }
+    
+    .evf-progress-bar {
+        margin-bottom: 1.5rem;
+    }
+    
+    .evf-progress-label {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .evf-registration-wrapper,
+    .evf-password-setup-wrapper,
+    .evf-success-wrapper,
+    .evf-error-wrapper {
+        padding: 1rem;
+    }
+    
+    .evf-registration-card,
+    .evf-password-setup-card,
+    .evf-success-card,
+    .evf-error-card {
+        padding: 1.5rem 1rem;
+        margin: 0.5rem;
+    }
+    
+    .evf-success-icon,
+    .evf-error-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+}
+
+/* Animations */
+@keyframes evf-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes evf-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.evf-fade-in {
+    animation: evf-fade-in 0.5s ease-out;
+}
+
+.evf-pulse {
+    animation: evf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Email Checking Animation */
+.evf-email-checking {
+    position: relative;
+}
+
+.evf-email-checking::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--evf-primary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: evf-spin 1s linear infinite;
+}
+
+/* Focus States */
+.evf-input:focus,
+.evf-btn:focus {
+    outline: 2px solid var(--evf-primary);
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .evf-input {
+        border-width: 2px;
+    }
+    
+    .evf-btn {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
