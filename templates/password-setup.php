@@ -42,7 +42,9 @@ if (!defined('ABSPATH')) {
         <div class="evf-form-header">
             <h1 class="evf-form-title"><?php _e('Parolanızı Belirleyin', 'email-verification-forms'); ?></h1>
             <p class="evf-form-subtitle">
-                <?php printf(
+                <?php
+                /* translators: %s: User email address (wrapped in <strong> tags) */
+                printf(
                     __('E-posta adresiniz doğrulandı: %s<br>Şimdi hesabınız için güvenli bir parola oluşturun.', 'email-verification-forms'),
                     '<strong>' . esc_html($email) . '</strong>'
                 ); ?>
@@ -63,22 +65,24 @@ if (!defined('ABSPATH')) {
                     <span class="required" aria-label="<?php _e('zorunlu', 'email-verification-forms'); ?>">*</span>
                 </label>
                 <div class="evf-password-wrapper">
-                    <input 
-                        type="password" 
-                        id="evf-password" 
-                        name="password" 
-                        class="evf-input evf-password-input" 
-                        required 
-                        autocomplete="new-password"
-                        aria-describedby="evf-password-help evf-password-strength"
-                        minlength="<?php echo esc_attr(get_option('evf_min_password_length', 8)); ?>"
+                    <input
+                            type="password"
+                            id="evf-password"
+                            name="password"
+                            class="evf-input evf-password-input"
+                            required
+                            autocomplete="new-password"
+                            aria-describedby="evf-password-help evf-password-strength"
+                            minlength="<?php echo esc_attr(get_option('evf_min_password_length', 8)); ?>"
                     >
                     <button type="button" class="evf-password-toggle" aria-label="<?php _e('Parolayı göster/gizle', 'email-verification-forms'); ?>">
                         <span class="evf-eye-icon">👁️</span>
                     </button>
                 </div>
                 <div id="evf-password-help" class="evf-help-text">
-                    <?php printf(
+                    <?php
+                    /* translators: %d: Minimum password length from settings */
+                    printf(
                         __('En az %d karakter uzunluğunda olmalıdır.', 'email-verification-forms'),
                         get_option('evf_min_password_length', 8)
                     ); ?>
@@ -86,7 +90,7 @@ if (!defined('ABSPATH')) {
                         <?php _e('Büyük harf, küçük harf ve rakam içermelidir.', 'email-verification-forms'); ?>
                     <?php endif; ?>
                 </div>
-                
+
                 <!-- Password Strength Meter -->
                 <div class="evf-password-strength" id="evf-password-strength" style="display: none;">
                     <div class="evf-strength-bar">
@@ -102,14 +106,14 @@ if (!defined('ABSPATH')) {
                     <span class="required" aria-label="<?php _e('zorunlu', 'email-verification-forms'); ?>">*</span>
                 </label>
                 <div class="evf-password-wrapper">
-                    <input 
-                        type="password" 
-                        id="evf-password-confirm" 
-                        name="password_confirm" 
-                        class="evf-input evf-password-confirm" 
-                        required 
-                        autocomplete="new-password"
-                        aria-describedby="evf-password-confirm-help"
+                    <input
+                            type="password"
+                            id="evf-password-confirm"
+                            name="password_confirm"
+                            class="evf-input evf-password-confirm"
+                            required
+                            autocomplete="new-password"
+                            aria-describedby="evf-password-confirm-help"
                     >
                     <button type="button" class="evf-password-toggle" aria-label="<?php _e('Parolayı göster/gizle', 'email-verification-forms'); ?>">
                         <span class="evf-eye-icon">👁️</span>
@@ -126,21 +130,24 @@ if (!defined('ABSPATH')) {
                 <ul class="evf-requirements-list">
                     <li class="evf-requirement" data-requirement="length">
                         <span class="evf-requirement-icon">○</span>
-                        <?php printf(__('En az %d karakter', 'email-verification-forms'), get_option('evf_min_password_length', 8)); ?>
+                        <?php
+                        /* translators: %d: Minimum password length from settings */
+                        printf(__('En az %d karakter', 'email-verification-forms'), get_option('evf_min_password_length', 8));
+                        ?>
                     </li>
                     <?php if (get_option('evf_require_strong_password', true)): ?>
-                    <li class="evf-requirement" data-requirement="lowercase">
-                        <span class="evf-requirement-icon">○</span>
-                        <?php _e('En az bir küçük harf', 'email-verification-forms'); ?>
-                    </li>
-                    <li class="evf-requirement" data-requirement="uppercase">
-                        <span class="evf-requirement-icon">○</span>
-                        <?php _e('En az bir büyük harf', 'email-verification-forms'); ?>
-                    </li>
-                    <li class="evf-requirement" data-requirement="number">
-                        <span class="evf-requirement-icon">○</span>
-                        <?php _e('En az bir rakam', 'email-verification-forms'); ?>
-                    </li>
+                        <li class="evf-requirement" data-requirement="lowercase">
+                            <span class="evf-requirement-icon">○</span>
+                            <?php _e('En az bir küçük harf', 'email-verification-forms'); ?>
+                        </li>
+                        <li class="evf-requirement" data-requirement="uppercase">
+                            <span class="evf-requirement-icon">○</span>
+                            <?php _e('En az bir büyük harf', 'email-verification-forms'); ?>
+                        </li>
+                        <li class="evf-requirement" data-requirement="number">
+                            <span class="evf-requirement-icon">○</span>
+                            <?php _e('En az bir rakam', 'email-verification-forms'); ?>
+                        </li>
                     <?php endif; ?>
                 </ul>
             </div>
@@ -167,217 +174,217 @@ if (!defined('ABSPATH')) {
 </div>
 
 <style>
-/* Additional styles for password setup page */
-.evf-password-setup-page {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
+    /* Additional styles for password setup page */
+    .evf-password-setup-page {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
-.evf-password-wrapper {
-    position: relative;
-}
+    .evf-password-wrapper {
+        position: relative;
+    }
 
-.evf-password-toggle {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: var(--evf-gray-400);
-    transition: var(--evf-transition);
-}
+    .evf-password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        color: var(--evf-gray-400);
+        transition: var(--evf-transition);
+    }
 
-.evf-password-toggle:hover {
-    color: var(--evf-gray-600);
-}
+    .evf-password-toggle:hover {
+        color: var(--evf-gray-600);
+    }
 
-.evf-password-toggle:focus {
-    outline: 2px solid var(--evf-primary);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
+    .evf-password-toggle:focus {
+        outline: 2px solid var(--evf-primary);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
 
-.evf-password-requirements {
-    background: var(--evf-gray-50);
-    border-radius: var(--evf-border-radius);
-    padding: 1.5rem;
-    margin: 1.5rem 0;
-}
-
-.evf-password-requirements h3 {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--evf-gray-800);
-    margin: 0 0 1rem 0;
-}
-
-.evf-requirements-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.evf-requirement {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--evf-gray-600);
-    margin-bottom: 0.5rem;
-    transition: var(--evf-transition);
-}
-
-.evf-requirement:last-child {
-    margin-bottom: 0;
-}
-
-.evf-requirement-icon {
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-shrink: 0;
-}
-
-.evf-requirement.met {
-    color: var(--evf-success);
-}
-
-.evf-requirement.met .evf-requirement-icon {
-    color: var(--evf-success);
-}
-
-.evf-requirement.met .evf-requirement-icon::before {
-    content: '✓';
-}
-
-.evf-security-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background: var(--evf-gray-50);
-    border-radius: var(--evf-border-radius);
-    padding: 1rem;
-    margin-top: 2rem;
-    border: 1px solid var(--evf-gray-200);
-}
-
-.evf-security-icon {
-    font-size: 1.5rem;
-    flex-shrink: 0;
-}
-
-.evf-security-info p {
-    font-size: 0.875rem;
-    color: var(--evf-gray-600);
-    margin: 0;
-    line-height: 1.5;
-}
-
-@media (max-width: 640px) {
     .evf-password-requirements {
-        padding: 1rem;
+        background: var(--evf-gray-50);
+        border-radius: var(--evf-border-radius);
+        padding: 1.5rem;
+        margin: 1.5rem 0;
     }
-    
-    .evf-security-info {
-        flex-direction: column;
-        text-align: center;
+
+    .evf-password-requirements h3 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--evf-gray-800);
+        margin: 0 0 1rem 0;
+    }
+
+    .evf-requirements-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .evf-requirement {
+        display: flex;
+        align-items: center;
         gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--evf-gray-600);
+        margin-bottom: 0.5rem;
+        transition: var(--evf-transition);
     }
-}
+
+    .evf-requirement:last-child {
+        margin-bottom: 0;
+    }
+
+    .evf-requirement-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    .evf-requirement.met {
+        color: var(--evf-success);
+    }
+
+    .evf-requirement.met .evf-requirement-icon {
+        color: var(--evf-success);
+    }
+
+    .evf-requirement.met .evf-requirement-icon::before {
+        content: '✓';
+    }
+
+    .evf-security-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: var(--evf-gray-50);
+        border-radius: var(--evf-border-radius);
+        padding: 1rem;
+        margin-top: 2rem;
+        border: 1px solid var(--evf-gray-200);
+    }
+
+    .evf-security-icon {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .evf-security-info p {
+        font-size: 0.875rem;
+        color: var(--evf-gray-600);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+        .evf-password-requirements {
+            padding: 1rem;
+        }
+
+        .evf-security-info {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.5rem;
+        }
+    }
 </style>
 
 <script>
-jQuery(document).ready(function($) {
-    // Password toggle functionality
-    $('.evf-password-toggle').on('click', function(e) {
-        e.preventDefault();
-        
-        const $toggle = $(this);
-        const $input = $toggle.siblings('input');
-        const $icon = $toggle.find('.evf-eye-icon');
-        
-        if ($input.attr('type') === 'password') {
-            $input.attr('type', 'text');
-            $icon.text('🙈');
-        } else {
-            $input.attr('type', 'password');
-            $icon.text('👁️');
-        }
-    });
-    
-    // Password requirements validation
-    function checkPasswordRequirements(password) {
-        const requirements = {
-            length: password.length >= <?php echo get_option('evf_min_password_length', 8); ?>,
-            <?php if (get_option('evf_require_strong_password', true)): ?>
-            lowercase: /[a-z]/.test(password),
-            uppercase: /[A-Z]/.test(password),
-            number: /[0-9]/.test(password)
-            <?php endif; ?>
-        };
-        
-        // Update requirement indicators
-        Object.keys(requirements).forEach(function(req) {
-            const $requirement = $('[data-requirement="' + req + '"]');
-            if (requirements[req]) {
-                $requirement.addClass('met');
+    jQuery(document).ready(function($) {
+        // Password toggle functionality
+        $('.evf-password-toggle').on('click', function(e) {
+            e.preventDefault();
+
+            const $toggle = $(this);
+            const $input = $toggle.siblings('input');
+            const $icon = $toggle.find('.evf-eye-icon');
+
+            if ($input.attr('type') === 'password') {
+                $input.attr('type', 'text');
+                $icon.text('🙈');
             } else {
-                $requirement.removeClass('met');
+                $input.attr('type', 'password');
+                $icon.text('👁️');
             }
         });
-        
-        return Object.values(requirements).every(Boolean);
-    }
-    
-    // Password input validation
-    $('.evf-password-input').on('input', function() {
-        const password = $(this).val();
-        const meetsRequirements = checkPasswordRequirements(password);
-        
-        $(this).removeClass('error success');
-        if (password.length > 0) {
-            if (meetsRequirements) {
-                $(this).addClass('success');
-            } else {
-                $(this).addClass('error');
+
+        // Password requirements validation
+        function checkPasswordRequirements(password) {
+            const requirements = {
+                length: password.length >= <?php echo get_option('evf_min_password_length', 8); ?>,
+                <?php if (get_option('evf_require_strong_password', true)): ?>
+                lowercase: /[a-z]/.test(password),
+                uppercase: /[A-Z]/.test(password),
+                number: /[0-9]/.test(password)
+                <?php endif; ?>
+            };
+
+            // Update requirement indicators
+            Object.keys(requirements).forEach(function(req) {
+                const $requirement = $('[data-requirement="' + req + '"]');
+                if (requirements[req]) {
+                    $requirement.addClass('met');
+                } else {
+                    $requirement.removeClass('met');
+                }
+            });
+
+            return Object.values(requirements).every(Boolean);
+        }
+
+        // Password input validation
+        $('.evf-password-input').on('input', function() {
+            const password = $(this).val();
+            const meetsRequirements = checkPasswordRequirements(password);
+
+            $(this).removeClass('error success');
+            if (password.length > 0) {
+                if (meetsRequirements) {
+                    $(this).addClass('success');
+                } else {
+                    $(this).addClass('error');
+                }
             }
-        }
-    });
-    
-    // Password confirmation validation
-    $('.evf-password-confirm').on('input', function() {
-        const password = $('.evf-password-input').val();
-        const confirmPassword = $(this).val();
-        
-        $(this).removeClass('error success');
-        if (confirmPassword.length > 0) {
-            if (password === confirmPassword) {
-                $(this).addClass('success');
-            } else {
-                $(this).addClass('error');
+        });
+
+        // Password confirmation validation
+        $('.evf-password-confirm').on('input', function() {
+            const password = $('.evf-password-input').val();
+            const confirmPassword = $(this).val();
+
+            $(this).removeClass('error success');
+            if (confirmPassword.length > 0) {
+                if (password === confirmPassword) {
+                    $(this).addClass('success');
+                } else {
+                    $(this).addClass('error');
+                }
             }
-        }
+        });
+
+        // Auto-focus password input
+        $('.evf-password-input').focus();
+
+        // Keyboard shortcuts
+        $(document).on('keydown', function(e) {
+            // Alt + S to submit form
+            if (e.altKey && e.key === 's') {
+                e.preventDefault();
+                $('#evf-password-setup-form').submit();
+            }
+        });
     });
-    
-    // Auto-focus password input
-    $('.evf-password-input').focus();
-    
-    // Keyboard shortcuts
-    $(document).on('keydown', function(e) {
-        // Alt + S to submit form
-        if (e.altKey && e.key === 's') {
-            e.preventDefault();
-            $('#evf-password-setup-form').submit();
-        }
-    });
-});
 </script>
 
 <?php wp_footer(); ?>
