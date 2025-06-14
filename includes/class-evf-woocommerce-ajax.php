@@ -1,7 +1,7 @@
 <?php
 /**
- * EVF WooCommerce AJAX Handler - Part 2/4
- * AJAX işlemleri - DÜZELTİLMİŞ VERSİYON
+ * EVF WooCommerce AJAX Handler
+ * WooCommerce AJAX işlemleri - DÜZELTİLMİŞ VERSİYON
  */
 
 if (!defined('ABSPATH')) {
@@ -24,10 +24,14 @@ class EVF_WooCommerce_AJAX {
     }
 
     /**
-     * AJAX hook'larını başlat
+     * AJAX hook'larını başlat - SADECE WooCommerce mode'da
      */
     private function init_hooks() {
-        // WooCommerce AJAX handlers
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce AJAX: Initializing AJAX handlers');
+        }
+
+        // WooCommerce için özel AJAX handlers
         add_action('wp_ajax_evf_verify_code', array($this, 'ajax_verify_code'));
         add_action('wp_ajax_nopriv_evf_verify_code', array($this, 'ajax_verify_code'));
         add_action('wp_ajax_evf_resend_code', array($this, 'ajax_resend_code'));
@@ -35,11 +39,9 @@ class EVF_WooCommerce_AJAX {
     }
 
     /**
-     * DÜZELTME: WooCommerce için AJAX kod doğrulama handler'ı
-     * Tüm hatalar giderildi
+     * AJAX: WooCommerce kod doğrulama handler'ı
      */
     public function ajax_verify_code() {
-        // AJAX HANDLER DEBUG - BAŞLANGIÇ
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('EVF WooCommerce AJAX: verify_code handler called');
             error_log('EVF WooCommerce AJAX: POST data: ' . print_r($_POST, true));
@@ -78,344 +80,236 @@ class EVF_WooCommerce_AJAX {
         global $wpdb;
         $table_name = $wpdb->prefix . 'evf_pending_registrations';
 
-        // DÜZELTME: Kayıtlı kodu bul - Sadece pending status
+        // Maksimum deneme kontrolü
+        $max_attempts = get_option('evf_max_code_attempts', 5);
+
         $registration = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name 
              WHERE email = %s 
-             AND verification_type = 'code' 
+             AND verification_type = 'code'
              AND status = 'pending'
-             ORDER BY created_at DESC 
-             LIMIT 1",
+             ORDER BY id DESC LIMIT 1",
             $email
         ));
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            if ($registration) {
-                error_log('EVF WooCommerce AJAX: Registration found - ID: ' . $registration->id . ', Status: ' . $registration->status);
-                error_log('EVF WooCommerce AJAX: DB Code: "' . $registration->verification_code . '", Input Code: "' . $code . '"');
-                error_log('EVF WooCommerce AJAX: Code expires at: ' . $registration->code_expires_at . ', Current time: ' . gmdate('Y-m-d H:i:s'));
-            } else {
-                error_log('EVF WooCommerce AJAX: No registration found for email: ' . $email);
-            }
-        }
-
         if (!$registration) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce AJAX: Registration not found for email: ' . $email);
+            }
             wp_send_json_error('registration_not_found');
         }
 
-        // Kod süresini kontrol et - DÜZELTME: GMT kullan
-        if ($registration->code_expires_at && strtotime($registration->code_expires_at) < time()) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Code expired - Expires: ' . $registration->code_expires_at . ', Now: ' . gmdate('Y-m-d H:i:s'));
-            }
-            wp_send_json_error('code_expired');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce AJAX: Registration found - ID: ' . $registration->id . ', Code attempts: ' . $registration->code_attempts);
         }
 
-        // DÜZELTME: Kodu kontrol et - String comparison + trim
-        $db_code = trim($registration->verification_code);
-        $input_code = trim($code);
-
-        if ($db_code !== $input_code) {
+        // Max attempts kontrolü
+        if ($registration->code_attempts >= $max_attempts) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Code mismatch - DB: "' . $db_code . '" (len:' . strlen($db_code) . '), Input: "' . $input_code . '" (len:' . strlen($input_code) . ')');
+                error_log('EVF WooCommerce AJAX: Max attempts exceeded for email: ' . $email);
             }
 
-            // Deneme sayısını artır
-            $attempts = (int) ($registration->code_attempts ?? 0) + 1;
-            $max_attempts = (int) get_option('evf_max_code_attempts', 5);
-
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Attempt ' . $attempts . ' of ' . $max_attempts);
+            // Registration ve kullanıcıyı sil
+            if ($registration->user_id) {
+                wp_delete_user($registration->user_id);
             }
+            $wpdb->delete($table_name, array('id' => $registration->id), array('%d'));
 
-            // DÜZELTME: Attempts update - Error handling ekle
-            $update_result = $wpdb->update(
+            wp_send_json_error('max_attempts');
+        }
+
+        // Kod doğrulama
+        $is_valid_code = false;
+
+        // Kod ve süre kontrolü
+        if ($registration->verification_code === $code) {
+            if ($registration->code_expires_at && strtotime($registration->code_expires_at) > time()) {
+                $is_valid_code = true;
+            } else {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('EVF WooCommerce AJAX: Code expired - Expires at: ' . $registration->code_expires_at . ', Current: ' . current_time('mysql'));
+                }
+            }
+        }
+
+        if (!$is_valid_code) {
+            // Yanlış kod - deneme sayısını artır
+            $wpdb->update(
                 $table_name,
-                array('code_attempts' => $attempts),
+                array(
+                    'code_attempts' => $registration->code_attempts + 1,
+                    'last_attempt_at' => current_time('mysql')
+                ),
                 array('id' => $registration->id),
-                array('%d'),
+                array('%d', '%s'),
                 array('%d')
             );
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Attempts update result: ' . ($update_result !== false ? 'SUCCESS' : 'FAILED'));
+                error_log('EVF WooCommerce AJAX: Invalid code - Attempts incremented to: ' . ($registration->code_attempts + 1));
             }
 
-            if ($attempts >= $max_attempts) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('EVF WooCommerce AJAX: Max attempts reached - Deleting registration and user');
-                }
-                // Maksimum deneme aşıldı - kayıtları sil
-                $wpdb->delete($table_name, array('id' => $registration->id), array('%d'));
-                if ($registration->user_id) {
-                    wp_delete_user($registration->user_id);
-                }
-                wp_send_json_error('max_attempts');
+            // Kod süresi dolmuşsa özel mesaj
+            if ($registration->verification_code === $code && $registration->code_expires_at && strtotime($registration->code_expires_at) <= time()) {
+                wp_send_json_error('code_expired');
             }
 
             wp_send_json_error('invalid_code');
         }
 
-        // Kod doğru - verification'ı tamamla
-        $user_id = $registration->user_id;
-
+        // Başarılı doğrulama
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce AJAX: Code verified successfully for user: ' . $user_id);
+            error_log('EVF WooCommerce AJAX: Code verified successfully for email: ' . $email);
         }
 
-        if ($user_id) {
-            // User meta güncelle
-            update_user_meta($user_id, 'evf_email_verified', 1);
-            update_user_meta($user_id, 'evf_verified_at', current_time('mysql'));
-
-            // Pending table güncelle
-            $status_update = $wpdb->update(
-                $table_name,
-                array(
-                    'status' => 'completed',
-                    'email_verified_at' => current_time('mysql')
-                ),
-                array('id' => $registration->id),
-                array('%s', '%s'),
-                array('%d')
-            );
+        // Kullanıcıyı verified olarak işaretle
+        if ($registration->user_id) {
+            update_user_meta($registration->user_id, 'evf_email_verified', 1);
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Status update result: ' . ($status_update !== false ? 'SUCCESS' : 'FAILED'));
+                error_log('EVF WooCommerce AJAX: User ' . $registration->user_id . ' marked as verified');
             }
-
-            // Parola değiştirme kontrolü
-            $password_change_required = get_user_meta($user_id, 'evf_password_change_required', true);
-
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Password change required: ' . ($password_change_required ? 'YES' : 'NO'));
-            }
-
-            if ($password_change_required == 1 || $password_change_required === '1') {
-                // Parola belirleme sayfasına yönlendir
-                $redirect_url = add_query_arg(array(
-                    'evf_action' => 'set_password',
-                    'evf_token' => $registration->token
-                ), wc_get_page_permalink('myaccount'));
-            } else {
-                // Normal başarı sayfasına yönlendir
-                $redirect_url = add_query_arg('evf_success', 'verified', wc_get_page_permalink('myaccount'));
-            }
-
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Sending success response with redirect: ' . $redirect_url);
-            }
-
-            wp_send_json_success(array(
-                'redirect_url' => $redirect_url
-            ));
-        } else {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Invalid state - no user_id');
-            }
-            wp_send_json_error('invalid_state');
         }
+
+        // Registration'ı completed olarak işaretle
+        $wpdb->update(
+            $table_name,
+            array(
+                'status' => 'completed',
+                'email_verified_at' => current_time('mysql'),
+                'code_attempts' => 0
+            ),
+            array('id' => $registration->id),
+            array('%s', '%s', '%d'),
+            array('%d')
+        );
+
+        // Welcome email gönder
+        if ($registration->user_id) {
+            $email_handler = EVF_Email::instance();
+            $email_handler->send_welcome_email($registration->user_id);
+
+            // Admin bildirimini gönder
+            if (get_option('evf_admin_notifications', true)) {
+                $email_handler->send_admin_notification($registration->user_id, $email);
+            }
+        }
+
+        // Başarılı response
+        wp_send_json_success(array(
+            'redirect_url' => wc_get_page_permalink('myaccount'),
+            'message' => __('E-posta doğrulandı! Hesabınıza yönlendiriliyorsunuz...', 'email-verification-forms')
+        ));
     }
 
     /**
-     * DÜZELTME: WooCommerce için AJAX kod tekrar gönderme handler'ı
-     * Rate limiting düzeltildi
+     * AJAX: WooCommerce kod tekrar gönderme handler'ı
      */
     public function ajax_resend_code() {
-        // AJAX HANDLER DEBUG - BAŞLANGIÇ
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('EVF WooCommerce AJAX: resend_code handler called');
-            error_log('EVF WooCommerce AJAX: POST data: ' . print_r($_POST, true));
         }
 
         // Nonce kontrolü
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'evf_nonce')) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Nonce verification failed');
+                error_log('EVF WooCommerce AJAX: Resend - Nonce verification failed');
             }
             wp_send_json_error('invalid_nonce');
         }
 
         $email = sanitize_email($_POST['email']);
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce AJAX: Resend code for email: ' . $email);
-        }
-
         if (!is_email($email)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Invalid email format');
+                error_log('EVF WooCommerce AJAX: Resend - Invalid email: ' . $email);
             }
             wp_send_json_error('invalid_email');
         }
 
         // Rate limiting kontrolü
-        if ($this->check_code_resend_limit($email)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Rate limit exceeded for email: ' . $email);
-            }
-            wp_send_json_error('rate_limit');
+        $resend_interval = get_option('evf_code_resend_interval', 5) * MINUTE_IN_SECONDS;
+        $cache_key = 'evf_resend_limit_' . md5($email);
+
+        $last_sent = get_transient($cache_key);
+
+        if ($last_sent && (time() - $last_sent) < $resend_interval) {
+            $remaining = $resend_interval - (time() - $last_sent);
+            wp_send_json_error(array(
+                'code' => 'rate_limit',
+                'remaining_seconds' => $remaining
+            ));
         }
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'evf_pending_registrations';
 
-        // Mevcut kayıtları bul
+        // Mevcut registration'ı bul
         $registration = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name 
              WHERE email = %s 
-             AND verification_type = 'code' 
+             AND verification_type = 'code'
              AND status = 'pending'
-             ORDER BY created_at DESC 
-             LIMIT 1",
+             ORDER BY id DESC LIMIT 1",
             $email
         ));
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            if ($registration) {
-                error_log('EVF WooCommerce AJAX: Registration found for resend - ID: ' . $registration->id);
-            } else {
-                error_log('EVF WooCommerce AJAX: No registration found for resend');
-            }
-        }
-
         if (!$registration) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce AJAX: Resend - Registration not found for email: ' . $email);
+            }
             wp_send_json_error('registration_not_found');
         }
 
         // Yeni kod oluştur
-        if (class_exists('EVF_Database')) {
-            $new_code = EVF_Database::instance()->generate_verification_code();
-        } else {
-            $new_code = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        }
-
-        $code_expires_at = gmdate('Y-m-d H:i:s', strtotime('+30 minutes'));
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce AJAX: Generated new code: ' . $new_code . ', Expires: ' . $code_expires_at);
-        }
+        $database = EVF_Database::instance();
+        $new_code = $database->generate_verification_code();
+        $code_expiry = gmdate('Y-m-d H:i:s', strtotime('+30 minutes'));
 
         // Veritabanını güncelle
         $update_result = $wpdb->update(
             $table_name,
             array(
                 'verification_code' => $new_code,
-                'code_expires_at' => $code_expires_at,
-                'last_code_sent' => current_time('mysql'),
-                'code_attempts' => 0 // Reset attempts
+                'code_expires_at' => $code_expiry,
+                'last_code_sent' => current_time('mysql')
             ),
             array('id' => $registration->id),
-            array('%s', '%s', '%s', '%d'),
+            array('%s', '%s', '%s'),
             array('%d')
         );
 
+        if ($update_result === false) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce AJAX: Resend - Database update failed');
+            }
+            wp_send_json_error('database_error');
+        }
+
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce AJAX: Database update result: ' . ($update_result !== false ? 'SUCCESS' : 'FAILED'));
+            error_log('EVF WooCommerce AJAX: Resend - New code generated: ' . $new_code . ' for email: ' . $email);
         }
 
         // E-posta gönder
-        $wc_main = EVF_WooCommerce::instance();
-        $email_handler = $wc_main->get_email_handler();
+        $email_handler = EVF_Email::instance();
+        $result = $email_handler->send_verification_code_email($email, $new_code);
 
-        if ($email_handler) {
-            $result = $email_handler->send_verification_code_email(
-                $email,
-                $new_code,
-                $registration->user_id,
-                json_decode($registration->context ?? '[]', true) ?: array()
-            );
-
+        if (!$result) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce AJAX: Resend email result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+                error_log('EVF WooCommerce AJAX: Resend - Email send failed');
             }
-
-            if ($result) {
-                wp_send_json_success();
-            } else {
-                wp_send_json_error('send_failed');
-            }
-        } else {
-            wp_send_json_error('email_handler_not_found');
+            wp_send_json_error('email_send_failed');
         }
-    }
 
-    /**
-     * DÜZELTME: Rate limiting kontrolü - GMT time kullan
-     */
-    private function check_code_resend_limit($email) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'evf_pending_registrations';
-        $interval_minutes = (int) get_option('evf_code_resend_interval', 2);
+        // Rate limiting transient'ini set et
+        set_transient($cache_key, time(), $resend_interval);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Checking resend limit for: ' . $email . ', Interval: ' . $interval_minutes . ' minutes');
+            error_log('EVF WooCommerce AJAX: Resend - Code sent successfully');
         }
 
-        // DÜZELTME: GMT time kullan ve karşılaştırma doğru yap
-        $cutoff_time = gmdate('Y-m-d H:i:s', strtotime("-{$interval_minutes} minutes"));
-
-        $recent_send = $wpdb->get_var($wpdb->prepare(
-            "SELECT last_code_sent FROM $table_name 
-             WHERE email = %s 
-             AND verification_type = 'code'
-             AND status = 'pending'
-             AND last_code_sent > %s
-             ORDER BY last_code_sent DESC
-             LIMIT 1",
-            $email,
-            $cutoff_time
+        wp_send_json_success(array(
+            'message' => __('Yeni doğrulama kodu gönderildi!', 'email-verification-forms')
         ));
-
-        $has_limit = !empty($recent_send);
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Rate limit check - Cutoff: ' . $cutoff_time . ', Recent send: ' . ($recent_send ?: 'NONE'));
-            error_log('EVF WooCommerce: Rate limit result: ' . ($has_limit ? 'BLOCKED' : 'ALLOWED'));
-        }
-
-        return $has_limit;
-    }
-
-    /**
-     * Countdown için remaining seconds hesapla
-     */
-    public function get_remaining_seconds($email) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'evf_pending_registrations';
-        $interval_minutes = (int) get_option('evf_code_resend_interval', 2);
-
-        $registration = $wpdb->get_row($wpdb->prepare(
-            "SELECT last_code_sent FROM $table_name 
-             WHERE email = %s 
-             AND verification_type = 'code'
-             AND status = 'pending'
-             ORDER BY created_at DESC 
-             LIMIT 1",
-            $email
-        ));
-
-        if (!$registration || !$registration->last_code_sent) {
-            return 0;
-        }
-
-        // DÜZELTME: Timestamp calculation
-        $last_sent_timestamp = strtotime($registration->last_code_sent);
-        $current_timestamp = time();
-        $interval_seconds = $interval_minutes * 60;
-
-        $elapsed = $current_timestamp - $last_sent_timestamp;
-        $remaining = max(0, $interval_seconds - $elapsed);
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Remaining seconds calculation:');
-            error_log('  Last sent: ' . $registration->last_code_sent . ' (timestamp: ' . $last_sent_timestamp . ')');
-            error_log('  Current: ' . gmdate('Y-m-d H:i:s') . ' (timestamp: ' . $current_timestamp . ')');
-            error_log('  Elapsed: ' . $elapsed . ' seconds');
-            error_log('  Interval: ' . $interval_seconds . ' seconds');
-            error_log('  Remaining: ' . $remaining . ' seconds');
-        }
-
-        return $remaining;
     }
 }

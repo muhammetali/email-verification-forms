@@ -1,7 +1,7 @@
 <?php
 /**
- * EVF WooCommerce Core Class - Part 1/4
- * Ana sınıf ve hook'lar
+ * EVF WooCommerce Integration Class
+ * WooCommerce entegrasyonu - DÜZELTİLMİŞ VERSİYON
  */
 
 if (!defined('ABSPATH')) {
@@ -11,6 +11,7 @@ if (!defined('ABSPATH')) {
 class EVF_WooCommerce {
 
     private static $instance = null;
+    private static $initialized = false; // Çoklu init engelleyici
 
     /**
      * Alt sınıf referansları
@@ -18,6 +19,8 @@ class EVF_WooCommerce {
     private $ajax_handler = null;
     private $email_handler = null;
     private $display_handler = null;
+    private $ui_handler = null;
+    private $password_handler = null;
 
     public static function instance() {
         if (is_null(self::$instance)) {
@@ -27,20 +30,51 @@ class EVF_WooCommerce {
     }
 
     private function __construct() {
-        // WooCommerce'in tam yüklenmesini bekle
-        add_action('woocommerce_loaded', array($this, 'init_hooks'));
-
-        // Eğer WooCommerce zaten yüklenmişse direkt init et
-        if (did_action('woocommerce_loaded')) {
-            $this->init_hooks();
+        // Çoklu init'i engelle
+        if (self::$initialized) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce: Already initialized, skipping...');
+            }
+            return;
         }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Initializing for the first time');
+        }
+
+        // WooCommerce'in tam yüklenmesini bekle
+        if (did_action('woocommerce_loaded')) {
+            $this->init();
+        } else {
+            add_action('woocommerce_loaded', array($this, 'init'), 1);
+        }
+
+        self::$initialized = true;
+    }
+
+    /**
+     * Ana initialization
+     */
+    public function init() {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: init() called');
+        }
+
+        // Alt sınıfları yükle
+        $this->load_sub_classes();
+
+        // Hook'ları başlat
+        $this->init_hooks();
+
+        // Late hooks (WooCommerce'in tamamlanmasından sonra)
+        add_action('init', array($this, 'init_late_hooks'), 20);
     }
 
     /**
      * Alt sınıfları yükle
      */
     private function load_sub_classes() {
-        // AJAX Handler
+        // AJAX Handler - EN ÖNEMLİ
         if (file_exists(EVF_INCLUDES_PATH . 'class-evf-woocommerce-ajax.php')) {
             require_once EVF_INCLUDES_PATH . 'class-evf-woocommerce-ajax.php';
             $this->ajax_handler = EVF_WooCommerce_AJAX::instance();
@@ -58,408 +92,65 @@ class EVF_WooCommerce {
             $this->display_handler = EVF_WooCommerce_Display::instance();
         }
 
-        // UI sınıfını yükle
+        // UI Handler
         if (file_exists(EVF_INCLUDES_PATH . 'class-evf-woocommerce-ui.php')) {
             require_once EVF_INCLUDES_PATH . 'class-evf-woocommerce-ui.php';
-            EVF_WooCommerce_UI::instance();
+            $this->ui_handler = EVF_WooCommerce_UI::instance();
         }
 
-        // Password handler sınıfını yükle
+        // Password Handler
         if (file_exists(EVF_INCLUDES_PATH . 'class-evf-woocommerce-password.php')) {
             require_once EVF_INCLUDES_PATH . 'class-evf-woocommerce-password.php';
-            EVF_WooCommerce_Password::instance();
+            $this->password_handler = EVF_WooCommerce_Password::instance();
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Sub-classes loaded');
         }
     }
 
     /**
-     * WooCommerce hook'larını başlat
+     * Ana hook'ları kaydet
      */
-    public function init_hooks() {
-        // Debug log
+    private function init_hooks() {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('EVF WooCommerce: Initializing hooks');
         }
 
-        // Müşteri oluşturma hook'ları
+        // Registration hooks
         add_action('woocommerce_created_customer', array($this, 'handle_customer_registration'), 10, 3);
-        add_action('woocommerce_checkout_order_processed', array($this, 'handle_checkout_registration'), 10, 3);
 
-        // wp_loaded sonrası hook'lar
-        add_action('wp_loaded', array($this, 'init_late_hooks'), 5);
+        // Login hooks - verified olmayan kullanıcıları engelle
+        add_filter('wp_authenticate_user', array($this, 'check_user_verification'), 10, 2);
 
-        // Alt sınıfları yükle
-        $this->load_sub_classes();
+        // Account hooks - verified olmayan kullanıcıları logout yap
+        add_action('wp_loaded', array($this, 'check_logged_in_user_verification'));
+
+        // WooCommerce customer emails'leri deaktif et
+        add_action('init', array($this, 'disable_woocommerce_customer_emails'), 15);
+
+        // Query vars
+        add_filter('query_vars', array($this, 'add_query_vars'));
+
+        // Rewrite rules
+        add_action('init', array($this, 'add_rewrite_rules'), 10);
     }
 
     /**
-     * wp_loaded sonrası çalışacak hook'lar
+     * Geç hook'lar (WooCommerce tamamen yüklendikten sonra)
      */
     public function init_late_hooks() {
-        // WooCommerce email'lerini deaktif et
-        $this->disable_woocommerce_customer_emails();
-
-        // Custom verification endpoint
-        $this->add_verification_endpoint();
-
-        // Verification token handling - wp_loaded sonrası çalışacak
-        add_action('template_redirect', array($this, 'handle_verification_redirect'), 1);
-
-        // Debug log
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('EVF WooCommerce: Late hooks initialized');
         }
-    }
 
-    /**
-     * WooCommerce müşteri email'lerini deaktif et
-     */
-    public function disable_woocommerce_customer_emails() {
-        // Customer New Account email'ini kapat
-        remove_action('woocommerce_created_customer_notification', array('WC_Emails', 'customer_new_account'), 10, 3);
+        // Template redirect
+        add_action('template_redirect', array($this, 'handle_verification_requests'), 5);
 
-        // Email sınıfları üzerinden deaktif et
-        add_filter('woocommerce_email_enabled_customer_new_account', '__return_false');
-
-        // Email class'ını hook'dan çıkar
-        if (class_exists('WC_Email_Customer_New_Account')) {
-            remove_action('woocommerce_created_customer_notification', array('WC_Email_Customer_New_Account', 'trigger'));
-        }
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Customer emails disabled');
-        }
-    }
-
-    /**
-     * WooCommerce müşteri kaydını handle et
-     */
-    public function handle_customer_registration($customer_id, $new_customer_data, $password_generated) {
-        // Müşteri email'ini al
-        $customer_email = $new_customer_data['user_email'];
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("EVF WooCommerce: New customer registered - ID: $customer_id, Email: $customer_email, Password generated: " . ($password_generated ? 'YES' : 'NO'));
-        }
-
-        // Geçici güçlü parola oluştur ve kaydet
-        $temp_password = wp_generate_password(16, true);
-        wp_set_password($temp_password, $customer_id);
-
-        // Kullanıcıyı unverified + password_change_required olarak işaretle
-        update_user_meta($customer_id, 'evf_email_verified', 0);
-        update_user_meta($customer_id, 'evf_password_change_required', 1);
-        update_user_meta($customer_id, 'evf_temp_password_set', current_time('mysql'));
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("EVF WooCommerce: Temporary password set for user $customer_id");
-        }
-
-        // Email verification başlat
-        $this->start_email_verification($customer_id, $customer_email);
-
-        // WooCommerce'in kendi welcome email'ini biraz geciktir
-        $this->delay_woocommerce_emails($customer_id);
-    }
-
-    /**
-     * Checkout sırasında yapılan kayıtları handle et
-     */
-    public function handle_checkout_registration($order_id, $posted_data, $order) {
-        // Checkout sırasında hesap oluşturuldu mu kontrol et
-        if (!isset($posted_data['createaccount']) || !$posted_data['createaccount']) {
-            return;
-        }
-
-        // Müşteri ID'sini al
-        $customer_id = $order->get_customer_id();
-        if (!$customer_id) {
-            return;
-        }
-
-        $customer_email = $order->get_billing_email();
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log("EVF WooCommerce: Checkout registration - Order: $order_id, Customer: $customer_id, Email: $customer_email");
-        }
-
-        // Email verification başlat
-        $this->start_email_verification($customer_id, $customer_email, array(
-            'context' => 'checkout',
-            'order_id' => $order_id
-        ));
-    }
-
-    /**
-     * Email verification sürecini başlat
-     */
-    public function start_email_verification($user_id, $email, $context = array()) {
-        // User'ı unverified olarak işaretle
-        update_user_meta($user_id, 'evf_email_verified', 0);
-        update_user_meta($user_id, 'evf_verification_sent_at', current_time('timestamp'));
-        update_user_meta($user_id, 'evf_verification_context', $context);
-
-        // Doğrulama türünü kontrol et
-        $verification_type = get_option('evf_verification_type', 'link');
-
-        // Pending registrations tablosuna ekle
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'evf_pending_registrations';
-
-        $token = wp_generate_password(32, false);
-        $expires_at = gmdate('Y-m-d H:i:s', strtotime('+' . get_option('evf_token_expiry', 24) . ' hours'));
-
-        // IP ve User Agent güvenli şekilde al
-        $ip_address = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '0.0.0.0';
-        $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Using verification type: ' . $verification_type);
-        }
-
-        // Kod doğrulama için ek veriler
-        $verification_code = null;
-        $code_expires_at = null;
-
-        if ($verification_type === 'code') {
-            if (class_exists('EVF_Database')) {
-                $verification_code = EVF_Database::instance()->generate_verification_code();
-            } else {
-                $verification_code = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
-            }
-            $code_expires_at = gmdate('Y-m-d H:i:s', strtotime('+30 minutes'));
-        }
-
-        // DÜZELTME: Tüm field'ları kontrol et
-        $insert_data = array(
-            'email' => $email,
-            'token' => $token,
-            'status' => 'pending',
-            'user_id' => $user_id,
-            'ip_address' => $ip_address,
-            'user_agent' => $user_agent,
-            'expires_at' => $expires_at,
-            'created_at' => current_time('mysql'),
-            'verification_type' => $verification_type,
-            'verification_code' => $verification_code,
-            'code_expires_at' => $code_expires_at,
-            'last_code_sent' => $verification_type === 'code' ? current_time('mysql') : null,
-            'code_attempts' => 0
-        );
-
-        $insert_format = array('%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d');
-
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        $result = $wpdb->insert($table_name, $insert_data, $insert_format);
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            if ($result === false) {
-                error_log('EVF WooCommerce: Database insert failed: ' . $wpdb->last_error);
-                error_log('EVF WooCommerce: Insert data: ' . print_r($insert_data, true));
-            } else {
-                error_log('EVF WooCommerce: Database insert successful, ID: ' . $wpdb->insert_id);
-            }
-        }
-
-        // Email gönder
-        if ($this->email_handler) {
-            if ($verification_type === 'code') {
-                $this->email_handler->send_verification_code_email($email, $verification_code, $user_id, $context);
-            } else {
-                $this->email_handler->send_verification_email($email, $token, $user_id, $context);
-            }
-        }
-
-        // Admin'e bildirim gönder (eğer enabled ise)
-        if (get_option('evf_admin_notifications', true) && $this->email_handler) {
-            $this->email_handler->send_admin_notification($user_id, $email, $context);
-        }
-    }
-
-    /**
-     * Verification redirect'ini handle et
-     */
-    public function handle_verification_redirect() {
-        // Sadece frontend'de çalış
-        if (is_admin()) {
-            return;
-        }
-
-        // URL'de evf_action var mı kontrol et
-        if (!isset($_GET['evf_action'])) {
-            return;
-        }
-
-        // WooCommerce'in yüklenmesini bekle
-        if (!function_exists('WC') || !WC()) {
-            return;
-        }
-
-        $action = sanitize_text_field(wp_unslash($_GET['evf_action']));
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Verification redirect triggered with action: ' . $action);
-        }
-
-        switch ($action) {
-            case 'wc_verify':
-                if (isset($_GET['evf_token'])) {
-                    $token = sanitize_text_field(wp_unslash($_GET['evf_token']));
-                    $this->process_verification_token($token);
-                }
-                break;
-
-            case 'set_password':
-                if (isset($_GET['evf_token'])) {
-                    $token = sanitize_text_field(wp_unslash($_GET['evf_token']));
-                    // Password handler sınıfına yönlendir
-                    if (class_exists('EVF_WooCommerce_Password')) {
-                        EVF_WooCommerce_Password::instance()->handle_password_setup($token);
-                    }
-                }
-                break;
-
-            case 'wc_code_verify':
-                // Magic link kod doğrulama sayfası
-                if (isset($_GET['evf_email']) && $this->display_handler) {
-                    $email = sanitize_email(wp_unslash($_GET['evf_email']));
-                    $this->display_handler->show_code_verification_page($email);
-                }
-                break;
-        }
-    }
-
-    /**
-     * Verification token'ını işle
-     */
-    private function process_verification_token($token) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'evf_pending_registrations';
-
-        // Debug log - başlangıç
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Processing verification token: ' . substr($token, 0, 8) . '...');
-        }
-
-        // Token'ı kontrol et
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        $pending_verification = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM $table_name WHERE token = %s AND status IN ('wc_pending', 'pending')",
-            $token
-        ));
-
-        if (!$pending_verification) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce: Invalid token - not found in pending status');
-            }
-            wp_redirect(add_query_arg('evf_error', 'invalid_token', wc_get_page_permalink('myaccount')));
-            exit;
-        }
-
-        // Debug log - token bulundu
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Token found for user ID: ' . $pending_verification->user_id);
-        }
-
-        // Token süresini kontrol et
-        if (strtotime($pending_verification->expires_at) < time()) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce: Token expired');
-            }
-            wp_redirect(add_query_arg('evf_error', 'expired_token', wc_get_page_permalink('myaccount')));
-            exit;
-        }
-
-        // Verification'ı tamamla
-        $user_id = $pending_verification->user_id;
-
-        if ($user_id) {
-            // User meta güncelle
-            update_user_meta($user_id, 'evf_email_verified', 1);
-            update_user_meta($user_id, 'evf_verified_at', current_time('mysql'));
-
-            // Pending table güncelle
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $wpdb->update(
-                $table_name,
-                array(
-                    'status' => 'completed',
-                    'email_verified_at' => current_time('mysql')
-                ),
-                array('id' => $pending_verification->id),
-                array('%s', '%s'),
-                array('%d')
-            );
-
-            // Debug log - verification tamamlandı
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce: Verification completed for user ID: ' . $user_id);
-            }
-
-            // Parola değiştirme kontrolü
-            $password_change_required = get_user_meta($user_id, 'evf_password_change_required', true);
-
-            // Debug log - parola kontrolü
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce: Password change required check for user ' . $user_id . ': ' . ($password_change_required ? 'YES' : 'NO'));
-            }
-
-            // String '1' veya integer 1 kontrolü
-            if ($password_change_required == 1 || $password_change_required === '1') {
-                // Debug log - parola sayfasına yönlendiriliyor
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('EVF WooCommerce: Redirecting to password setup page');
-                }
-
-                // Parola belirleme sayfasına yönlendir
-                $redirect_url = add_query_arg(array(
-                    'evf_action' => 'set_password',
-                    'evf_token' => $token
-                ), wc_get_page_permalink('myaccount'));
-
-                wp_redirect($redirect_url);
-                exit;
-            } else {
-                // Debug log - normal başarı sayfası
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('EVF WooCommerce: No password change required, redirecting to success page');
-                }
-
-                // Normal başarı sayfasına yönlendir
-                wp_redirect(add_query_arg('evf_success', 'verified', wc_get_page_permalink('myaccount')));
-                exit;
-            }
-        } else {
-            // Bu durumda user_id olmalı WooCommerce mode'da
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('EVF WooCommerce: No user ID found for token');
-            }
-            wp_redirect(add_query_arg('evf_error', 'invalid_state', wc_get_page_permalink('myaccount')));
-            exit;
-        }
-    }
-
-    /**
-     * WooCommerce verification endpoint ekle
-     */
-    public function add_verification_endpoint() {
-        add_rewrite_endpoint('email-verification', EP_PAGES);
-
-        // Debug log
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('EVF WooCommerce: Email verification endpoint added');
-        }
-
-        // Endpoint'leri flush et (sadece ilk seferde)
-        if (get_option('evf_endpoints_flushed') !== 'yes') {
+        // Rewrite rules flush (sadece ilk kurulumda)
+        if (get_option('evf_wc_rewrite_rules_flushed') !== 'yes') {
             flush_rewrite_rules();
-            update_option('evf_endpoints_flushed', 'yes');
+            update_option('evf_wc_rewrite_rules_flushed', 'yes');
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('EVF WooCommerce: Rewrite rules flushed');
@@ -468,19 +159,301 @@ class EVF_WooCommerce {
     }
 
     /**
-     * WooCommerce email'lerini geciktir (çakışma olmasın)
+     * WooCommerce customer emails'leri deaktif et
      */
-    private function delay_woocommerce_emails($customer_id) {
-        // WooCommerce'in customer email'ini 5 dakika geciktir
-        wp_schedule_single_event(
-            time() + (5 * 60), // 5 dakika sonra
-            'evf_delayed_wc_customer_email',
-            array($customer_id)
-        );
+    public function disable_woocommerce_customer_emails() {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Customer emails disabled');
+        }
+
+        // New account email'i deaktif et
+        remove_action('woocommerce_created_customer_notification', array('WC_Emails', 'customer_new_account'), 10, 3);
+
+        // Email class'ından da kaldır
+        add_filter('woocommerce_email_enabled_customer_new_account', '__return_false');
     }
 
     /**
-     * Alt sınıflara erişim
+     * Müşteri kaydı handle et
+     */
+    public function handle_customer_registration($customer_id, $new_customer_data = array(), $password_generated = false) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: New customer registered - ID: ' . $customer_id . ', Email: ' . $new_customer_data['user_email'] . ', Password generated: ' . ($password_generated ? 'YES' : 'NO'));
+        }
+
+        $user = get_user_by('id', $customer_id);
+        if (!$user) {
+            return;
+        }
+
+        $email = $user->user_email;
+
+        // Admin'ler exempt
+        if (user_can($customer_id, 'manage_options')) {
+            return;
+        }
+
+        // Zaten verified ise skip
+        if (get_user_meta($customer_id, 'evf_email_verified', true)) {
+            return;
+        }
+
+        // Temporary password set et (eğer password generated ise)
+        if ($password_generated) {
+            update_user_meta($customer_id, 'evf_temp_password', wp_generate_password(12));
+
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce: Temporary password set for user ' . $customer_id);
+            }
+        }
+
+        // Verification type belirle
+        $verification_type = get_option('evf_verification_method', 'code');
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Using verification type: ' . $verification_type);
+        }
+
+        // Database'e kaydet
+        $database = EVF_Database::instance();
+        $registration_data = array(
+            'user_id' => $customer_id,
+            'email' => $email,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'verification_type' => $verification_type,
+            'status' => 'pending',
+            'token' => wp_generate_uuid4(),
+            'expires_at' => gmdate('Y-m-d H:i:s', strtotime('+24 hours')),
+            'created_at' => current_time('mysql')
+        );
+
+        $registration_id = $database->create_registration($registration_data);
+
+        if (!$registration_id) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce: Database insert failed');
+            }
+            return;
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Database insert successful, ID: ' . $registration_id);
+        }
+
+        // E-posta gönder
+        $email_handler = EVF_Email::instance();
+
+        if ($verification_type === 'code') {
+            $code = $database->generate_verification_code();
+            $database->save_verification_code($registration_id, $code);
+
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce: Sending verification code email to ' . $email . ' with code: ' . $code);
+            }
+
+            $result = $email_handler->send_verification_code_email($email, $code);
+        } else {
+            $verification_url = home_url('/wc-email-verification/' . $registration_data['token']);
+            $result = $email_handler->send_verification_email($email, $verification_url);
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Code email sent result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+        }
+    }
+
+    /**
+     * Kullanıcı login'de verification kontrolü
+     */
+    public function check_user_verification($user, $password) {
+        if (is_wp_error($user)) {
+            return $user;
+        }
+
+        // Admin'ler exempt
+        if (user_can($user->ID, 'manage_options')) {
+            return $user;
+        }
+
+        // E-posta verified mi kontrol et
+        if (!get_user_meta($user->ID, 'evf_email_verified', true)) {
+            return new WP_Error('email_not_verified',
+                __('E-posta adresiniz henüz doğrulanmamış. Lütfen e-postanızı kontrol edin.', 'email-verification-forms')
+            );
+        }
+
+        return $user;
+    }
+
+    /**
+     * Login'li kullanıcı verification kontrolü
+     */
+    public function check_logged_in_user_verification() {
+        if (!is_user_logged_in()) {
+            return;
+        }
+
+        $user_id = get_current_user_id();
+
+        // Admin'ler exempt
+        if (user_can($user_id, 'manage_options')) {
+            return;
+        }
+
+        // Account sayfasında değilse skip
+        if (!is_wc_endpoint_url() && !is_account_page()) {
+            return;
+        }
+
+        // Verified olmayan kullanıcıları logout yap
+        if (!get_user_meta($user_id, 'evf_email_verified', true)) {
+            wp_logout();
+            wp_redirect(add_query_arg('evf_error', 'not_verified', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+    }
+
+    /**
+     * Query vars ekle
+     */
+    public function add_query_vars($vars) {
+        $vars[] = 'wc_email_verification';
+        $vars[] = 'wc_code_verify';
+        $vars[] = 'evf_action';
+        $vars[] = 'evf_token';
+        return $vars;
+    }
+
+    /**
+     * Rewrite rules ekle
+     */
+    public function add_rewrite_rules() {
+        // E-posta verification endpoint
+        add_rewrite_rule(
+            '^wc-email-verification/([^/]+)/?$',
+            'index.php?wc_email_verification=$matches[1]',
+            'top'
+        );
+
+        // Kod verification endpoint
+        add_rewrite_rule(
+            '^wc-code-verification/([^/]+)/?$',
+            'index.php?wc_code_verify=$matches[1]',
+            'top'
+        );
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Email verification endpoint added');
+        }
+    }
+
+    /**
+     * Verification request'lerini handle et
+     */
+    public function handle_verification_requests() {
+        $email_token = get_query_var('wc_email_verification');
+        $code_email = get_query_var('wc_code_verify');
+
+        if ($email_token) {
+            $this->handle_email_verification($email_token);
+        }
+
+        if ($code_email) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('EVF WooCommerce: Verification redirect triggered with action: wc_code_verify');
+            }
+            $this->handle_code_verification_redirect($code_email);
+        }
+    }
+
+    /**
+     * E-posta verification handle et
+     */
+    private function handle_email_verification($token) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Email verification - Token: ' . $token);
+        }
+
+        $database = EVF_Database::instance();
+        $registration = $database->get_registration_by_token($token);
+
+        if (!$registration) {
+            wp_redirect(add_query_arg('evf_error', 'invalid_token', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+
+        if ($registration->status === 'completed') {
+            wp_redirect(add_query_arg('evf_success', 'already_verified', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+
+        // Token'ın süresi dolmuş mu kontrol et
+        if (strtotime($registration->expires_at) < time()) {
+            wp_redirect(add_query_arg('evf_error', 'token_expired', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+
+        // E-posta'yı doğrulanmış olarak işaretle
+        update_user_meta($registration->user_id, 'evf_email_verified', 1);
+        $database->mark_registration_completed($registration->id, $registration->user_id);
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Email verified successfully for user: ' . $registration->user_id);
+        }
+
+        // Başarı sayfasına yönlendir
+        wp_redirect(add_query_arg('evf_success', 'email_verified', wc_get_page_permalink('myaccount')));
+        exit;
+    }
+
+    /**
+     * Kod verification redirect handle et
+     */
+    private function handle_code_verification_redirect($email) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Magic link clicked - Email: ' . $email);
+        }
+
+        // E-posta ile registration'ı bul
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+
+        $registration = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name 
+             WHERE email = %s 
+             AND verification_type = 'code' 
+             ORDER BY id DESC LIMIT 1",
+            $email
+        ));
+
+        if (!$registration) {
+            wp_redirect(add_query_arg('evf_error', 'registration_not_found', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('EVF WooCommerce: Magic link clicked - Email: ' . $email . ', Status: ' . $registration->status);
+        }
+
+        // Zaten completed ise account'a yönlendir
+        if ($registration->status === 'completed') {
+            wp_redirect(add_query_arg('evf_success', 'already_verified', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+
+        // Display handler'ı kullanarak kod doğrulama sayfasını göster
+        if ($this->display_handler) {
+            $this->display_handler->show_code_verification_page($registration);
+        } else {
+            // Fallback
+            wp_redirect(add_query_arg('evf_error', 'display_error', wc_get_page_permalink('myaccount')));
+            exit;
+        }
+    }
+
+    /**
+     * Alt sınıf referanslarını döndür
      */
     public function get_ajax_handler() {
         return $this->ajax_handler;
@@ -492,5 +465,13 @@ class EVF_WooCommerce {
 
     public function get_display_handler() {
         return $this->display_handler;
+    }
+
+    public function get_ui_handler() {
+        return $this->ui_handler;
+    }
+
+    public function get_password_handler() {
+        return $this->password_handler;
     }
 }
