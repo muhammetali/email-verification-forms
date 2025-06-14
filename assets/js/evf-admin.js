@@ -1,5 +1,6 @@
 /**
  * Email Verification Forms - Admin JavaScript
+ * Temizlenmiş ve optimize edilmiş versiyon
  */
 
 (function($) {
@@ -7,113 +8,140 @@
 
     // Admin EVF object
     window.EVF_Admin = {
+
+        // Initialization
         init: function() {
             this.bindEvents();
             this.initTabs();
             this.initColorPicker();
             this.initCharts();
+            this.initTooltips();
         },
 
+        // Event bindings
         bindEvents: function() {
             // Tab navigation
             $(document).on('click', '.evf-tab-btn', this.handleTabClick);
-            
-            // Test email
+
+            // Test email functionality
             $(document).on('click', '#send-test-email', this.sendTestEmail);
-            
-            // Export data
+
+            // Export and database operations
             $(document).on('click', '#export-data', this.exportData);
-            
-            // Cleanup database
             $(document).on('click', '#cleanup-database', this.cleanupDatabase);
-            
-            // Reset stats
             $(document).on('click', '#reset-stats', this.resetStats);
-            
-            // Resend email
+
+            // Email operations
             $(document).on('click', '.evf-resend-email', this.resendEmail);
-            
+            $(document).on('click', '.evf-delete-registration', this.deleteRegistration);
+
             // View details
             $(document).on('click', '.evf-view-details', this.viewDetails);
-            
-            // Color picker change
+
+            // Color picker
             $(document).on('change', 'input[name="evf_brand_color"]', this.updateColorPreview);
+
+            // Settings form
+            $(document).on('change', '.evf-toggle-setting', this.toggleSetting);
+
+            // Refresh stats
+            $(document).on('click', '#refresh-stats', this.refreshStats);
+
+            // Bulk actions
+            $(document).on('click', '#bulk-action-apply', this.applyBulkAction);
+            $(document).on('change', '.evf-bulk-select-all', this.toggleBulkSelect);
         },
 
+        // Tab management
         handleTabClick: function(e) {
             e.preventDefault();
-            
+
             const $btn = $(this);
             const tabId = $btn.data('tab');
-            
+
             // Update active tab button
             $('.evf-tab-btn').removeClass('active');
             $btn.addClass('active');
-            
+
             // Show corresponding tab content
             $('.evf-tab-content').removeClass('active');
             $('#tab-' + tabId).addClass('active');
-            
-            // Save active tab in localStorage
+
+            // Save active tab
             localStorage.setItem('evf_active_tab', tabId);
+
+            // Trigger tab change event
+            $(document).trigger('evf:tab-changed', [tabId]);
         },
 
         initTabs: function() {
             // Restore active tab from localStorage
             const activeTab = localStorage.getItem('evf_active_tab');
-            if (activeTab) {
+            if (activeTab && $('.evf-tab-btn[data-tab="' + activeTab + '"]').length) {
                 $('.evf-tab-btn[data-tab="' + activeTab + '"]').click();
             }
         },
 
+        // Color picker functionality
         initColorPicker: function() {
-            // Initialize color preview
+            if (typeof $.fn.wpColorPicker !== 'undefined') {
+                $('input[name="evf_brand_color"]').wpColorPicker({
+                    change: this.updateColorPreview,
+                    clear: this.updateColorPreview
+                });
+            }
             this.updateColorPreview();
         },
 
         updateColorPreview: function() {
-            const color = $('input[name="evf_brand_color"]').val();
+            const color = $('input[name="evf_brand_color"]').val() || '#3b82f6';
             $('.evf-preview-button').css('background-color', color);
+            $('.evf-color-preview').css('background-color', color);
         },
 
+        // Test email functionality
         sendTestEmail: function(e) {
             e.preventDefault();
-            
+
             const $btn = $(this);
             const email = $('#test-email-address').val();
             const type = $('#test-email-type').val();
-            
+
+            // Validation
             if (!email) {
-                alert('Lütfen bir e-posta adresi girin.');
+                EVF_Admin.showNotice('error', 'Lütfen bir e-posta adresi girin.');
                 return;
             }
-            
+
             if (!EVF_Admin.isValidEmail(email)) {
-                alert('Geçerli bir e-posta adresi girin.');
+                EVF_Admin.showNotice('error', 'Geçerli bir e-posta adresi girin.');
                 return;
             }
-            
+
             // Set loading state
             $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Gönderiliyor...');
-            
+
+            // Send test email
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'evf_test_email',
+                    action: 'evf_send_test_email',
                     nonce: evf_admin.nonce,
                     email: email,
                     type: type
                 },
                 success: function(response) {
                     if (response.success) {
-                        EVF_Admin.showNotice('success', evf_admin.messages.test_email_sent);
+                        EVF_Admin.showNotice('success', 'Test e-postası başarıyla gönderildi!');
+                        $('#test-email-address').val('');
                     } else {
-                        EVF_Admin.showNotice('error', evf_admin.messages.test_email_failed);
+                        EVF_Admin.showNotice('error', response.data || 'E-posta gönderilemedi.');
                     }
                 },
-                error: function() {
-                    EVF_Admin.showNotice('error', evf_admin.messages.test_email_failed);
+                error: function(xhr, status, error) {
+                    console.error('Test email error:', error);
+                    EVF_Admin.showNotice('error', 'Bir hata oluştu.');
                 },
                 complete: function() {
                     $btn.prop('disabled', false).text('Test E-postası Gönder');
@@ -121,69 +149,71 @@
             });
         },
 
+        // Data export functionality
         exportData: function(e) {
             e.preventDefault();
-            
+
             const $btn = $(this);
             const exportType = $('input[name="export_type"]:checked').val();
-            
+
             if (!exportType) {
-                alert('Lütfen bir dışa aktarma türü seçin.');
+                EVF_Admin.showNotice('error', 'Lütfen bir export türü seçin.');
                 return;
             }
-            
+
             if (!confirm('Veriler CSV formatında indirilecek. Devam etmek istiyor musunuz?')) {
                 return;
             }
-            
+
             // Set loading state
             $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Hazırlanıyor...');
-            
-            // Create form and submit
+
+            // Create and submit form
             const form = $('<form>', {
                 method: 'POST',
                 action: evf_admin.ajax_url,
                 style: 'display: none;'
             });
-            
+
             form.append($('<input>', {
                 type: 'hidden',
                 name: 'action',
                 value: 'evf_export_data'
             }));
-            
+
             form.append($('<input>', {
                 type: 'hidden',
                 name: 'nonce',
                 value: evf_admin.nonce
             }));
-            
+
             form.append($('<input>', {
                 type: 'hidden',
                 name: 'export_type',
                 value: exportType
             }));
-            
+
             $('body').append(form);
             form.submit();
             form.remove();
-            
-            // Reset button after delay
+
+            // Reset button
             setTimeout(function() {
                 $btn.prop('disabled', false).text('Dışa Aktar');
             }, 2000);
         },
 
+        // Database cleanup
         cleanupDatabase: function(e) {
             e.preventDefault();
-            
+
             if (!confirm('Bu işlem süresi dolmuş kayıtları ve eski logları silecek. Devam etmek istiyor musunuz?')) {
                 return;
             }
-            
+
             const $btn = $(this);
             $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Temizleniyor...');
-            
+
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
@@ -193,13 +223,17 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        EVF_Admin.showNotice('success', 'Veritabanı temizlendi!');
-                        location.reload();
+                        EVF_Admin.showNotice('success', 'Veritabanı temizlendi! ' + (response.data.message || ''));
+                        // Refresh page after cleanup
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        EVF_Admin.showNotice('error', 'Temizleme işlemi başarısız.');
+                        EVF_Admin.showNotice('error', response.data || 'Temizleme işlemi başarısız.');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Cleanup error:', error);
                     EVF_Admin.showNotice('error', 'Bir hata oluştu.');
                 },
                 complete: function() {
@@ -208,16 +242,17 @@
             });
         },
 
+        // Reset statistics
         resetStats: function(e) {
             e.preventDefault();
-            
-            if (!confirm(evf_admin.messages.confirm_delete)) {
+
+            if (!confirm('Tüm istatistikler sıfırlanacak. Bu işlem geri alınamaz. Devam etmek istiyor musunuz?')) {
                 return;
             }
-            
+
             const $btn = $(this);
             $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Sıfırlanıyor...');
-            
+
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
@@ -228,12 +263,15 @@
                 success: function(response) {
                     if (response.success) {
                         EVF_Admin.showNotice('success', 'İstatistikler sıfırlandı!');
-                        location.reload();
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        EVF_Admin.showNotice('error', 'Sıfırlama işlemi başarısız.');
+                        EVF_Admin.showNotice('error', response.data || 'Sıfırlama işlemi başarısız.');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Reset stats error:', error);
                     EVF_Admin.showNotice('error', 'Bir hata oluştu.');
                 },
                 complete: function() {
@@ -242,397 +280,346 @@
             });
         },
 
+        // Resend email
         resendEmail: function(e) {
             e.preventDefault();
-            
+
             const $btn = $(this);
             const email = $btn.data('email');
-            
+            const registrationId = $btn.data('id');
+
+            if (!email) {
+                EVF_Admin.showNotice('error', 'E-posta adresi bulunamadı.');
+                return;
+            }
+
             if (!confirm('Bu e-posta adresine doğrulama e-postası tekrar gönderilecek. Devam etmek istiyor musunuz?')) {
                 return;
             }
-            
+
             $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Gönderiliyor...');
-            
+
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'evf_resend_verification',
                     nonce: evf_admin.nonce,
-                    email: email
+                    email: email,
+                    registration_id: registrationId
                 },
                 success: function(response) {
                     if (response.success) {
                         EVF_Admin.showNotice('success', 'E-posta tekrar gönderildi!');
                     } else {
-                        EVF_Admin.showNotice('error', 'E-posta gönderilemedi.');
+                        EVF_Admin.showNotice('error', response.data || 'E-posta gönderilemedi.');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('Resend email error:', error);
                     EVF_Admin.showNotice('error', 'Bir hata oluştu.');
                 },
                 complete: function() {
-                    $btn.prop('disabled', false).text('Yeniden Gönder');
+                    $btn.prop('disabled', false).html('📧 Tekrar Gönder');
                 }
             });
         },
 
-        viewDetails: function(e) {
+        // Delete registration
+        deleteRegistration: function(e) {
             e.preventDefault();
-            
+
             const $btn = $(this);
             const registrationId = $btn.data('id');
-            
-            // Create modal
-            const modal = $(`
-                <div class="evf-modal-overlay">
-                    <div class="evf-modal">
-                        <div class="evf-modal-header">
-                            <h3>Kayıt Detayları</h3>
-                            <button class="evf-modal-close">&times;</button>
-                        </div>
-                        <div class="evf-modal-content">
-                            <div class="evf-loading-spinner">
-                                <span class="evf-spinner-admin"></span>
-                                Yükleniyor...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `);
-            
-            $('body').append(modal);
-            
-            // Load registration details
+            const email = $btn.data('email');
+
+            if (!confirm('Bu kayıt silinecek: ' + email + '. Devam etmek istiyor musunuz?')) {
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Siliniyor...');
+
+            $.ajax({
+                url: evf_admin.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'evf_delete_registration',
+                    nonce: evf_admin.nonce,
+                    registration_id: registrationId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        EVF_Admin.showNotice('success', 'Kayıt silindi!');
+                        $btn.closest('tr').fadeOut(function() {
+                            $(this).remove();
+                        });
+                    } else {
+                        EVF_Admin.showNotice('error', response.data || 'Kayıt silinemedi.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Delete registration error:', error);
+                    EVF_Admin.showNotice('error', 'Bir hata oluştu.');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('🗑️ Sil');
+                }
+            });
+        },
+
+        // View details modal
+        viewDetails: function(e) {
+            e.preventDefault();
+
+            const $btn = $(this);
+            const registrationId = $btn.data('id');
+
+            // Show loading
+            $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span>');
+
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'evf_get_registration_details',
                     nonce: evf_admin.nonce,
-                    id: registrationId
+                    registration_id: registrationId
                 },
                 success: function(response) {
                     if (response.success) {
-                        modal.find('.evf-modal-content').html(response.data.html);
+                        EVF_Admin.showModal('Kayıt Detayları', response.data.html);
                     } else {
-                        modal.find('.evf-modal-content').html('<p>Detaylar yüklenemedi.</p>');
+                        EVF_Admin.showNotice('error', 'Detaylar yüklenemedi.');
                     }
                 },
-                error: function() {
-                    modal.find('.evf-modal-content').html('<p>Bir hata oluştu.</p>');
-                }
-            });
-            
-            // Close modal events
-            modal.on('click', '.evf-modal-close, .evf-modal-overlay', function(e) {
-                if (e.target === this) {
-                    modal.remove();
+                error: function(xhr, status, error) {
+                    console.error('View details error:', error);
+                    EVF_Admin.showNotice('error', 'Bir hata oluştu.');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).html('👁️ Detay');
                 }
             });
         },
 
-        initCharts: function() {
-            // Chart initialization is handled in the PHP template
-            // This is a placeholder for any additional chart customization
-        },
+        // Settings toggle
+        toggleSetting: function(e) {
+            const $toggle = $(this);
+            const setting = $toggle.data('setting');
+            const value = $toggle.is(':checked') ? 1 : 0;
 
-        // Utility functions
-        isValidEmail: function(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        },
-
-        showNotice: function(type, message) {
-            // Remove existing notices
-            $('.evf-admin-notice').remove();
-            
-            const notice = $('<div>', {
-                class: 'notice notice-' + type + ' evf-admin-notice is-dismissible',
-                html: '<p>' + message + '</p>'
-            });
-            
-            // Add dismiss button
-            notice.append('<button type="button" class="notice-dismiss"><span class="screen-reader-text">Bu bildirimi kapat</span></button>');
-            
-            // Insert notice
-            $('.evf-admin-wrap h1').after(notice);
-            
-            // Auto-dismiss after 5 seconds
-            setTimeout(function() {
-                notice.fadeOut(function() {
-                    $(this).remove();
-                });
-            }, 5000);
-            
-            // Handle dismiss button
-            notice.on('click', '.notice-dismiss', function() {
-                notice.fadeOut(function() {
-                    $(this).remove();
-                });
-            });
-        },
-
-        formatNumber: function(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        },
-
-        formatDate: function(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('tr-TR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        },
-
-        // Real-time updates
-        initRealTimeUpdates: function() {
-            // Poll for updates every 30 seconds
-            setInterval(function() {
-                EVF_Admin.updateDashboardStats();
-            }, 30000);
-        },
-
-        updateDashboardStats: function() {
-            if ($('.evf-stats-grid').length === 0) {
-                return;
-            }
-            
             $.ajax({
                 url: evf_admin.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'evf_get_dashboard_stats',
-                    nonce: evf_admin.nonce
+                    action: 'evf_toggle_setting',
+                    nonce: evf_admin.nonce,
+                    setting: setting,
+                    value: value
                 },
                 success: function(response) {
                     if (response.success) {
-                        EVF_Admin.updateStatsCards(response.data);
+                        EVF_Admin.showNotice('success', 'Ayar güncellendi!', 2000);
+                    } else {
+                        $toggle.prop('checked', !$toggle.is(':checked'));
+                        EVF_Admin.showNotice('error', 'Ayar güncellenemedi.');
+                    }
+                },
+                error: function() {
+                    $toggle.prop('checked', !$toggle.is(':checked'));
+                    EVF_Admin.showNotice('error', 'Bir hata oluştu.');
+                }
+            });
+        },
+
+        // Refresh stats
+        refreshStats: function(e) {
+            e.preventDefault();
+
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> Yenileniyor...');
+
+            location.reload();
+        },
+
+        // Bulk actions
+        applyBulkAction: function(e) {
+            e.preventDefault();
+
+            const action = $('#bulk-action-selector').val();
+            const selected = $('.evf-bulk-select:checked').map(function() {
+                return $(this).val();
+            }).get();
+
+            if (!action) {
+                EVF_Admin.showNotice('error', 'Lütfen bir işlem seçin.');
+                return;
+            }
+
+            if (selected.length === 0) {
+                EVF_Admin.showNotice('error', 'Lütfen en az bir kayıt seçin.');
+                return;
+            }
+
+            const actionText = $('#bulk-action-selector option:selected').text();
+            if (!confirm(selected.length + ' kayıt için "' + actionText + '" işlemi uygulanacak. Devam etmek istiyor musunuz?')) {
+                return;
+            }
+
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('<span class="evf-spinner-admin"></span> İşleniyor...');
+
+            $.ajax({
+                url: evf_admin.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'evf_bulk_action',
+                    nonce: evf_admin.nonce,
+                    bulk_action: action,
+                    selected_items: selected
+                },
+                success: function(response) {
+                    if (response.success) {
+                        EVF_Admin.showNotice('success', response.data.message || 'İşlem tamamlandı!');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        EVF_Admin.showNotice('error', response.data || 'İşlem başarısız.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Bulk action error:', error);
+                    EVF_Admin.showNotice('error', 'Bir hata oluştu.');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text('Uygula');
+                }
+            });
+        },
+
+        // Toggle bulk select
+        toggleBulkSelect: function() {
+            const checked = $(this).is(':checked');
+            $('.evf-bulk-select').prop('checked', checked);
+        },
+
+        // Charts initialization
+        initCharts: function() {
+            if (typeof Chart === 'undefined' || !$('#evf-registration-chart').length) {
+                return;
+            }
+
+            // Registration trend chart
+            const ctx = document.getElementById('evf-registration-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: window.evf_chart_data || {},
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
                     }
                 }
             });
         },
 
-        updateStatsCards: function(stats) {
-            // Update stats cards with new data
-            $('.evf-stat-card').each(function() {
-                const $card = $(this);
-                const statType = $card.data('stat-type');
-                
-                if (stats[statType]) {
-                    $card.find('h3').text(EVF_Admin.formatNumber(stats[statType]));
-                }
-            });
-        },
-
-        // Data table enhancements
-        initDataTable: function() {
-            // Add sorting functionality
-            $('.evf-table th').on('click', function() {
-                const $th = $(this);
-                const column = $th.data('column');
-                
-                if (!column) return;
-                
-                const $table = $th.closest('table');
-                const $tbody = $table.find('tbody');
-                const rows = $tbody.find('tr').toArray();
-                
-                const isAscending = $th.hasClass('sorted-asc');
-                
-                // Remove existing sort classes
-                $table.find('th').removeClass('sorted-asc sorted-desc');
-                
-                // Add new sort class
-                $th.addClass(isAscending ? 'sorted-desc' : 'sorted-asc');
-                
-                // Sort rows
-                rows.sort(function(a, b) {
-                    const aVal = $(a).find('td').eq($th.index()).text().trim();
-                    const bVal = $(b).find('td').eq($th.index()).text().trim();
-                    
-                    let comparison = 0;
-                    if (aVal > bVal) comparison = 1;
-                    if (aVal < bVal) comparison = -1;
-                    
-                    return isAscending ? -comparison : comparison;
+        // Tooltips initialization
+        initTooltips: function() {
+            if (typeof $.fn.tooltip !== 'undefined') {
+                $('[data-tooltip]').tooltip({
+                    placement: 'top',
+                    trigger: 'hover'
                 });
-                
-                // Update table
-                $tbody.empty().append(rows);
+            }
+        },
+
+        // Utility functions
+        isValidEmail: function(email) {
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return regex.test(email);
+        },
+
+        showNotice: function(type, message, duration) {
+            duration = duration || 5000;
+
+            const notice = $('<div class="evf-admin-notice evf-notice-' + type + '">' +
+                '<span class="evf-notice-message">' + message + '</span>' +
+                '<button class="evf-notice-close">&times;</button>' +
+                '</div>');
+
+            // Remove existing notices
+            $('.evf-admin-notice').remove();
+
+            // Add new notice
+            $('body').append(notice);
+
+            // Auto hide
+            setTimeout(function() {
+                notice.fadeOut(function() {
+                    notice.remove();
+                });
+            }, duration);
+
+            // Manual close
+            notice.on('click', '.evf-notice-close', function() {
+                notice.fadeOut(function() {
+                    notice.remove();
+                });
             });
         },
 
-        // Keyboard shortcuts
-        initKeyboardShortcuts: function() {
-            $(document).on('keydown', function(e) {
-                // Ctrl + S to save settings
-                if (e.ctrlKey && e.key === 's') {
-                    e.preventDefault();
-                    $('input[type="submit"]').click();
-                }
-                
-                // Ctrl + E to export data
-                if (e.ctrlKey && e.key === 'e') {
-                    e.preventDefault();
-                    $('#export-data').click();
-                }
-                
-                // Escape to close modals
-                if (e.key === 'Escape') {
-                    $('.evf-modal-overlay').remove();
+        showModal: function(title, content) {
+            const modal = $('<div class="evf-modal-overlay">' +
+                '<div class="evf-modal">' +
+                '<div class="evf-modal-header">' +
+                '<h3>' + title + '</h3>' +
+                '<button class="evf-modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="evf-modal-body">' + content + '</div>' +
+                '</div>' +
+                '</div>');
+
+            $('body').append(modal);
+
+            // Close events
+            modal.on('click', '.evf-modal-close, .evf-modal-overlay', function(e) {
+                if (e.target === this) {
+                    modal.fadeOut(function() {
+                        modal.remove();
+                    });
                 }
             });
+
+            // Escape key
+            $(document).on('keydown.evf-modal', function(e) {
+                if (e.keyCode === 27) {
+                    modal.fadeOut(function() {
+                        modal.remove();
+                    });
+                    $(document).off('keydown.evf-modal');
+                }
+            });
+        },
+
+        // Debug helper
+        debug: function(message, data) {
+            if (window.console && evf_admin.debug) {
+                console.log('[EVF Admin Debug]', message, data || '');
+            }
         }
     };
 
     // Initialize when document is ready
     $(document).ready(function() {
         EVF_Admin.init();
-        EVF_Admin.initDataTable();
-        EVF_Admin.initKeyboardShortcuts();
-        EVF_Admin.initRealTimeUpdates();
-        
-        // Handle responsive table scrolling
-        $('.evf-table').wrap('<div class="evf-table-wrapper"></div>');
-        
-        // Auto-refresh for specific pages
-        if (window.location.href.indexOf('evf-registrations') > -1) {
-            // Auto-refresh registrations page every 60 seconds
-            setTimeout(function() {
-                location.reload();
-            }, 60000);
-        }
+        EVF_Admin.debug('Admin script initialized');
     });
 
-    // Handle window resize
-    $(window).on('resize', function() {
-        // Update chart dimensions if needed
-        if (typeof Chart !== 'undefined') {
-            // Chart.js v3+ için güncellenmiş kod
-            Object.values(Chart.instances || {}).forEach(function(chart) {
-                if (chart && typeof chart.resize === 'function') {
-                    chart.resize();
-                }
-            });
-        }
-    });
+    // Export for global access
+    window.EVF_Admin = EVF_Admin;
 
 })(jQuery);
-
-// Additional CSS for modal and enhanced features
-const additionalCSS = `
-    .evf-modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 100000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .evf-modal {
-        background: white;
-        border-radius: 8px;
-        max-width: 600px;
-        width: 90%;
-        max-height: 80vh;
-        overflow: hidden;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    }
-    
-    .evf-modal-header {
-        padding: 20px;
-        border-bottom: 1px solid #e5e7eb;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .evf-modal-header h3 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-    }
-    
-    .evf-modal-close {
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #6b7280;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-    }
-    
-    .evf-modal-close:hover {
-        background: #f3f4f6;
-        color: #374151;
-    }
-    
-    .evf-modal-content {
-        padding: 20px;
-        overflow-y: auto;
-        max-height: calc(80vh - 80px);
-    }
-    
-    .evf-loading-spinner {
-        text-align: center;
-        padding: 40px;
-        color: #6b7280;
-    }
-    
-    .evf-table-wrapper {
-        overflow-x: auto;
-        margin: 20px 0;
-    }
-    
-    .evf-table th.sorted-asc::after {
-        content: ' ↑';
-    }
-    
-    .evf-table th.sorted-desc::after {
-        content: ' ↓';
-    }
-    
-    .evf-table th[data-column] {
-        cursor: pointer;
-        user-select: none;
-    }
-    
-    .evf-table th[data-column]:hover {
-        background: #e5e7eb;
-    }
-    
-    @media (max-width: 768px) {
-        .evf-modal {
-            width: 95%;
-            max-height: 90vh;
-        }
-        
-        .evf-modal-header,
-        .evf-modal-content {
-            padding: 15px;
-        }
-    }
-`;
-
-// Add additional CSS to head
-if (document.head) {
-    const style = document.createElement('style');
-    style.textContent = additionalCSS;
-    document.head.appendChild(style);
-}
