@@ -35,6 +35,13 @@ class EVF_Core {
         add_action('wp_loaded', array($this, 'add_rewrite_rules'));
         add_action('template_redirect', array($this, 'handle_custom_endpoints'));
 
+        // Kod doğrulama AJAX handlers
+        add_action('wp_ajax_evf_verify_code', array($this, 'ajax_verify_code'));
+        add_action('wp_ajax_nopriv_evf_verify_code', array($this, 'ajax_verify_code'));
+
+        add_action('wp_ajax_evf_resend_code', array($this, 'ajax_resend_code'));
+        add_action('wp_ajax_nopriv_evf_resend_code', array($this, 'ajax_resend_code'));
+
         // Koşullu WordPress login override (sadece WooCommerce yoksa)
         if (!evf_is_woocommerce_active()) {
             add_action('login_form_register', array($this, 'redirect_registration'));
@@ -57,6 +64,10 @@ class EVF_Core {
 
         // Global verification check hooks
         add_action('wp_loaded', array($this, 'check_user_verification_status'));
+
+        // Cron job hooks
+        add_action('evf_auto_delete_unverified', array($this, 'auto_delete_unverified_accounts'));
+        add_action('wp_loaded', array($this, 'setup_auto_delete_cron'));
     }
 
     /**
@@ -550,6 +561,119 @@ class EVF_Core {
     }
 
     /**
+     * AJAX: Kod doğrulama
+     */
+    public function ajax_verify_code() {
+        if (!wp_verify_nonce($_POST['nonce'], 'evf_nonce')) {
+            wp_send_json_error('invalid_nonce');
+        }
+
+        $email = sanitize_email($_POST['email']);
+        $code = sanitize_text_field($_POST['verification_code']);
+
+        if (!is_email($email) || !$code) {
+            wp_send_json_error('invalid_data');
+        }
+
+        // Kod sadece 6 haneli rakam olmalı
+        if (!preg_match('/^[0-9]{6}$/', $code)) {
+            wp_send_json_error('invalid_code_format');
+        }
+
+        $database = EVF_Database::instance();
+
+        // Maksimum deneme kontrolü
+        if ($database->is_code_attempts_exceeded($email)) {
+            // Kayıtları sil
+            $this->delete_registration_by_email($email);
+            wp_send_json_error('max_attempts');
+        }
+
+        // Kodu doğrula
+        $registration = $database->verify_code($email, $code);
+
+        if (!$registration) {
+            // Yanlış kod - deneme sayısını artır
+            $database->increment_code_attempts($email);
+            wp_send_json_error('invalid_code');
+        }
+
+        // Başarılı doğrulama
+        if ($registration->user_id) {
+            // WooCommerce mode - kullanıcı zaten var, sadece verified flag'i güncelle
+            update_user_meta($registration->user_id, 'evf_email_verified', 1);
+
+            // WooCommerce account sayfasına yönlendir
+            $redirect_url = evf_is_woocommerce_active() ?
+                wc_get_page_permalink('myaccount') :
+                wp_login_url();
+        } else {
+            // WordPress mode - parola belirleme sayfasına yönlendir
+            $redirect_url = home_url('/email-verification/set-password/' . $registration->token);
+        }
+
+        wp_send_json_success(array(
+            'redirect_url' => $redirect_url
+        ));
+    }
+
+    /**
+     * AJAX: Kod tekrar gönderme
+     */
+    public function ajax_resend_code() {
+        if (!wp_verify_nonce($_POST['nonce'], 'evf_nonce')) {
+            wp_send_json_error('invalid_nonce');
+        }
+
+        $email = sanitize_email($_POST['email']);
+
+        if (!is_email($email)) {
+            wp_send_json_error('invalid_email');
+        }
+
+        // Rate limiting kontrolü
+        if ($this->check_code_resend_limit($email)) {
+            wp_send_json_error('rate_limit');
+        }
+
+        // Mevcut kayıtları bul
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+
+        $registration = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name 
+             WHERE email = %s 
+             AND verification_type = 'code' 
+             AND status = 'pending'",
+            $email
+        ));
+
+        if (!$registration) {
+            wp_send_json_error('registration_not_found');
+        }
+
+        // Yeni kod oluştur ve gönder
+        $database = EVF_Database::instance();
+        $new_code = $database->generate_verification_code();
+
+        // Kodu veritabanına kaydet
+        $database->save_verification_code($registration->id, $new_code);
+
+        // E-posta gönder
+        $email_handler = EVF_Email::instance();
+        $result = $email_handler->send_verification_code_email($email, $new_code);
+
+        if ($result) {
+            // Email log'a kaydet
+            $database->log_email($email, 'code_verification', 'sent', null, $registration->user_id);
+            wp_send_json_success();
+        } else {
+            $database->log_email($email, 'code_verification', 'failed', 'Mail send failed', $registration->user_id);
+            wp_send_json_error('send_failed');
+        }
+    }
+
+    /**
      * Rate limiting kontrolü (cache ile optimize edildi)
      */
     private function check_rate_limit($email) {
@@ -566,6 +690,27 @@ class EVF_Core {
         // Set cache with expiration
         wp_cache_set($cache_key, time(), $cache_group, $rate_limit_minutes * 60);
         return false;
+    }
+
+    /**
+     * Kod tekrar gönderme rate limiting kontrolü
+     */
+    private function check_code_resend_limit($email) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+        $interval_minutes = get_option('evf_code_resend_interval', 2);
+
+        $recent_send = $wpdb->get_var($wpdb->prepare(
+            "SELECT last_code_sent FROM $table_name 
+             WHERE email = %s 
+             AND verification_type = 'code'
+             AND status = 'pending'
+             AND last_code_sent > %s",
+            $email,
+            gmdate('Y-m-d H:i:s', strtotime("-{$interval_minutes} minutes"))
+        ));
+
+        return !empty($recent_send);
     }
 
     /**
@@ -588,6 +733,87 @@ class EVF_Core {
         }
 
         return true;
+    }
+
+    /**
+     * E-posta ile kayıtları sil
+     */
+    private function delete_registration_by_email($email) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+
+        // Önce user_id'yi al (eğer varsa kullanıcıyı da sil)
+        $user_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT user_id FROM $table_name 
+             WHERE email = %s 
+             AND user_id IS NOT NULL",
+            $email
+        ));
+
+        // Kayıtları sil
+        $wpdb->delete($table_name, array('email' => $email), array('%s'));
+
+        // Kullanıcıları sil (eğer henüz verified değilse)
+        foreach ($user_ids as $user_id) {
+            if (!get_user_meta($user_id, 'evf_email_verified', true)) {
+                wp_delete_user($user_id);
+            }
+        }
+    }
+
+    /**
+     * Otomatik hesap silme cron job'u
+     */
+    public function setup_auto_delete_cron() {
+        if (!wp_next_scheduled('evf_auto_delete_unverified')) {
+            wp_schedule_event(time(), 'hourly', 'evf_auto_delete_unverified');
+        }
+    }
+
+    /**
+     * Otomatik hesap silme işlemi
+     */
+    public function auto_delete_unverified_accounts() {
+        if (!get_option('evf_auto_delete_unverified', false)) {
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+        $delete_hours = get_option('evf_auto_delete_hours', 24);
+
+        $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$delete_hours} hours"));
+
+        // Silinecek kayıtları bul
+        $expired_registrations = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name 
+             WHERE status = 'pending' 
+             AND created_at < %s",
+            $cutoff_date
+        ));
+
+        foreach ($expired_registrations as $registration) {
+            // Kullanıcıyı sil (eğer varsa)
+            if ($registration->user_id) {
+                wp_delete_user($registration->user_id);
+            }
+
+            // Kayıt kaydını sil
+            $wpdb->delete($table_name, array('id' => $registration->id), array('%d'));
+        }
+
+        // Log
+        if (defined('WP_DEBUG') && WP_DEBUG && !empty($expired_registrations)) {
+            error_log('EVF: Auto-deleted ' . count($expired_registrations) . ' unverified accounts');
+        }
+    }
+
+    /**
+     * Kod doğrulama sayfasını göster
+     */
+    public function show_code_verification_page($email, $last_code_sent = null) {
+        include EVF_TEMPLATES_PATH . 'code-verification.php';
+        exit;
     }
 
     /**

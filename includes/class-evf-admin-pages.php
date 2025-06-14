@@ -1,6 +1,6 @@
 <?php
 /**
- * EVF Admin Pages Class
+ * EVF Admin Pages Class - DÜZELTME
  * Admin sayfaları (Kayıtlar, Loglar, Ayarlar, Araçlar)
  */
 
@@ -288,7 +288,7 @@ class EVF_Admin_Pages {
         if (isset($_POST['submit'])) {
             check_admin_referer('evf_settings_nonce');
 
-            // Ayarları kaydet
+            // Mevcut ayarlar
             update_option('evf_token_expiry', intval($_POST['evf_token_expiry']));
             update_option('evf_rate_limit', intval($_POST['evf_rate_limit']));
             update_option('evf_min_password_length', intval($_POST['evf_min_password_length']));
@@ -299,19 +299,33 @@ class EVF_Admin_Pages {
             update_option('evf_email_from_name', sanitize_text_field($_POST['evf_email_from_name']));
             update_option('evf_email_from_email', sanitize_email($_POST['evf_email_from_email']));
 
+            // YENİ AYARLAR - Kod Doğrulama
+            update_option('evf_verification_type', sanitize_text_field($_POST['evf_verification_type']));
+            update_option('evf_code_resend_interval', intval($_POST['evf_code_resend_interval']));
+            update_option('evf_max_code_attempts', intval($_POST['evf_max_code_attempts']));
+            update_option('evf_auto_delete_unverified', isset($_POST['evf_auto_delete_unverified']));
+            update_option('evf_auto_delete_hours', intval($_POST['evf_auto_delete_hours']));
+
             echo '<div class="notice notice-success"><p>' . esc_html__('Ayarlar kaydedildi!', 'email-verification-forms') . '</p></div>';
         }
 
-        // Mevcut ayarları getir
+        // Mevcut ayarları getir (DÜZELTME: Tüm değişkenleri tanımla)
         $token_expiry = get_option('evf_token_expiry', 24);
         $rate_limit = get_option('evf_rate_limit', 15);
         $min_password_length = get_option('evf_min_password_length', 8);
         $require_strong_password = get_option('evf_require_strong_password', true);
         $admin_notifications = get_option('evf_admin_notifications', true);
         $redirect_after_login = get_option('evf_redirect_after_login', home_url());
-        $brand_color = get_option('evf_brand_color', '#3b82f6');
+        $brand_color = get_option('evf_brand_color', '#96588a');
         $email_from_name = get_option('evf_email_from_name', get_bloginfo('name'));
         $email_from_email = get_option('evf_email_from_email', get_option('admin_email'));
+
+        // Yeni ayarlar
+        $verification_type = get_option('evf_verification_type', 'link');
+        $code_resend_interval = get_option('evf_code_resend_interval', 2);
+        $max_code_attempts = get_option('evf_max_code_attempts', 5);
+        $auto_delete_unverified = get_option('evf_auto_delete_unverified', false);
+        $auto_delete_hours = get_option('evf_auto_delete_hours', 24);
         ?>
 
         <div class="wrap evf-admin-wrap">
@@ -325,8 +339,36 @@ class EVF_Admin_Pages {
                         <button type="button" class="evf-tab-btn active" data-tab="general"><?php esc_html_e('Genel', 'email-verification-forms'); ?></button>
                         <button type="button" class="evf-tab-btn" data-tab="email"><?php esc_html_e('E-posta', 'email-verification-forms'); ?></button>
                         <button type="button" class="evf-tab-btn" data-tab="security"><?php esc_html_e('Güvenlik', 'email-verification-forms'); ?></button>
+                        <button type="button" class="evf-tab-btn" data-tab="code-verification"><?php esc_html_e('Kod Doğrulama', 'email-verification-forms'); ?></button>
                         <button type="button" class="evf-tab-btn" data-tab="design"><?php esc_html_e('Tasarım', 'email-verification-forms'); ?></button>
                     </div>
+
+                    <script>
+                        jQuery(document).ready(function($) {
+                            // Doğrulama türü değiştiğinde kod ayarları tab'ının durumunu güncelle
+                            function updateCodeVerificationTab() {
+                                var verificationType = $('input[name="evf_verification_type"]:checked').val();
+                                var $codeTab = $('.evf-tab-btn[data-tab="code-verification"]');
+
+                                if (verificationType === 'code') {
+                                    $codeTab.show().removeClass('disabled');
+                                } else {
+                                    $codeTab.hide();
+                                    // Eğer kod tab'ı aktifse genel tab'a geç
+                                    if ($codeTab.hasClass('active')) {
+                                        $('.evf-tab-btn[data-tab="general"]').click();
+                                    }
+                                }
+                            }
+
+                            // Sayfa yüklendiğinde ve değiştiğinde kontrol et
+                            updateCodeVerificationTab();
+                            $('input[name="evf_verification_type"]').on('change', updateCodeVerificationTab);
+
+                            // Tab'ların görünürlüğünü başlangıçta ayarla
+                            setTimeout(updateCodeVerificationTab, 100);
+                        });
+                    </script>
 
                     <!-- General Tab -->
                     <div class="evf-tab-content active" id="tab-general">
@@ -356,6 +398,24 @@ class EVF_Admin_Pages {
                                         <input type="checkbox" name="evf_admin_notifications" <?php checked($admin_notifications); ?> />
                                         <?php esc_html_e('Yeni kayıtlar için admin\'e e-posta gönder', 'email-verification-forms'); ?>
                                     </label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Doğrulama Türü', 'email-verification-forms'); ?></th>
+                                <td>
+                                    <fieldset>
+                                        <label>
+                                            <input type="radio" name="evf_verification_type" value="link" <?php checked($verification_type, 'link'); ?> />
+                                            <strong><?php esc_html_e('E-posta Bağlantısı', 'email-verification-forms'); ?></strong>
+                                            <br><small><?php esc_html_e('Kullanıcıya e-posta ile doğrulama bağlantısı gönderilir (Mevcut sistem)', 'email-verification-forms'); ?></small>
+                                        </label>
+                                        <br><br>
+                                        <label>
+                                            <input type="radio" name="evf_verification_type" value="code" <?php checked($verification_type, 'code'); ?> />
+                                            <strong><?php esc_html_e('Doğrulama Kodu', 'email-verification-forms'); ?></strong>
+                                            <br><small><?php esc_html_e('Kullanıcıya e-posta ile 6 haneli doğrulama kodu gönderilir', 'email-verification-forms'); ?></small>
+                                        </label>
+                                    </fieldset>
                                 </td>
                             </tr>
                         </table>
@@ -448,6 +508,53 @@ class EVF_Admin_Pages {
                             </div>
                         </div>
                     </div>
+
+                    <div class="evf-tab-content" id="tab-code-verification">
+                        <h3><?php esc_html_e('Kod Doğrulama Ayarları', 'email-verification-forms'); ?></h3>
+
+                        <div id="code-verification-notice" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
+                            <p><strong><?php esc_html_e('Bilgi:', 'email-verification-forms'); ?></strong> <?php esc_html_e('Bu ayarlar sadece "Doğrulama Kodu" seçeneği aktif olduğunda geçerlidir.', 'email-verification-forms'); ?></p>
+                        </div>
+
+                        <table class="form-table">
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Kod Tekrar Gönderme Aralığı', 'email-verification-forms'); ?></th>
+                                <td>
+                                    <input type="number" name="evf_code_resend_interval" value="<?php echo esc_attr($code_resend_interval); ?>" min="1" max="10" /> <?php esc_html_e('dakika', 'email-verification-forms'); ?>
+                                    <p class="description"><?php esc_html_e('Kullanıcı kaç dakikada bir yeni kod isteyebilir', 'email-verification-forms'); ?></p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Maksimum Kod Deneme Sayısı', 'email-verification-forms'); ?></th>
+                                <td>
+                                    <input type="number" name="evf_max_code_attempts" value="<?php echo esc_attr($max_code_attempts); ?>" min="3" max="10" />
+                                    <p class="description"><?php esc_html_e('Kullanıcı kaç kere yanlış kod girebilir (sonrasında kayıt iptal olur)', 'email-verification-forms'); ?></p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Otomatik Hesap Silme', 'email-verification-forms'); ?></th>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" name="evf_auto_delete_unverified" <?php checked($auto_delete_unverified); ?> />
+                                        <?php esc_html_e('Doğrulanmayan hesapları otomatik sil', 'email-verification-forms'); ?>
+                                    </label>
+                                    <br><br>
+                                    <label>
+                                        <?php esc_html_e('Silme süresi:', 'email-verification-forms'); ?>
+                                        <select name="evf_auto_delete_hours">
+                                            <option value="24" <?php selected($auto_delete_hours, 24); ?>><?php esc_html_e('24 saat', 'email-verification-forms'); ?></option>
+                                            <option value="48" <?php selected($auto_delete_hours, 48); ?>><?php esc_html_e('48 saat', 'email-verification-forms'); ?></option>
+                                            <option value="72" <?php selected($auto_delete_hours, 72); ?>><?php esc_html_e('72 saat', 'email-verification-forms'); ?></option>
+                                            <option value="168" <?php selected($auto_delete_hours, 168); ?>><?php esc_html_e('1 hafta', 'email-verification-forms'); ?></option>
+                                        </select>
+                                    </label>
+                                    <p class="description"><?php esc_html_e('Bu süre sonunda doğrulanmayan hesaplar tamamen silinir', 'email-verification-forms'); ?></p>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
 
                 <p class="submit">
@@ -528,7 +635,7 @@ class EVF_Admin_Pages {
             'WordPress Version' => get_bloginfo('version'),
             'PHP Version' => PHP_VERSION,
             'MySQL Version' => $wpdb->db_version(),
-            'Plugin Version' => EVF_VERSION,
+            'Plugin Version' => defined('EVF_VERSION') ? EVF_VERSION : '1.0.0',
             'Memory Limit' => ini_get('memory_limit'),
             'Max Execution Time' => ini_get('max_execution_time') . ' seconds',
             'Mail Function' => function_exists('mail') ? 'Available' : 'Not Available',

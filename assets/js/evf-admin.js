@@ -513,8 +513,11 @@
     $(window).on('resize', function() {
         // Update chart dimensions if needed
         if (typeof Chart !== 'undefined') {
-            Chart.instances.forEach(function(chart) {
-                chart.resize();
+            // Chart.js v3+ için güncellenmiş kod
+            Object.values(Chart.instances || {}).forEach(function(chart) {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
             });
         }
     });

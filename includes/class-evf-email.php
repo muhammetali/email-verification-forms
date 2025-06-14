@@ -517,4 +517,128 @@ class EVF_Email {
 
         return wp_mail($email, $subject, $message, $headers);
     }
+
+    /**
+     * Doğrulama kodu e-postası gönder
+     */
+    public function send_verification_code_email($email, $code) {
+        $site_name = get_bloginfo('name');
+        $site_url = home_url();
+
+        /* translators: %s: Site name */
+        $subject = sprintf(__('%s - E-posta Doğrulama Kodu', 'email-verification-forms'), $site_name);
+
+        $template_data = array(
+            'site_name' => $site_name,
+            'site_url' => $site_url,
+            'site_logo' => $this->get_site_logo_html(),
+            'primary_color' => get_option('evf_brand_color', '#3b82f6'),
+            'verification_code' => $code,
+            'email' => $email,
+            'expiry_minutes' => 30
+        );
+
+        $message = $this->get_verification_code_template($template_data);
+
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $this->get_from_name() . ' <' . $this->get_from_email() . '>'
+        );
+
+        return wp_mail($email, $subject, $message, $headers);
+    }
+
+    /**
+     * Kod doğrulama email template'i
+     */
+    private function get_verification_code_template($data) {
+        /* translators: %s: Site name (wrapped in <strong> tags) */
+        $welcome_text = sprintf(__('Merhaba,<br><br>%s sitesine kayıt olduğunuz için teşekkür ederiz. Kayıt işleminizi tamamlamak için aşağıdaki 6 haneli doğrulama kodunu kullanın:', 'email-verification-forms'), '<strong>' . esc_html($data['site_name']) . '</strong>');
+
+        /* translators: %d: Number of minutes for code expiry */
+        $expiry_text = sprintf(__('Bu kod %d dakika geçerlidir. Süre dolmadan önce doğrulama işlemini tamamlayın.', 'email-verification-forms'), $data['expiry_minutes']);
+
+        /* translators: %s: Site name */
+        $footer_text = sprintf(__('Bu e-posta %s tarafından gönderilmiştir.', 'email-verification-forms'), esc_html($data['site_name']));
+
+        return '
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>' . __('E-posta Doğrulama Kodu', 'email-verification-forms') . '</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, ' . esc_attr($data['primary_color']) . ', #6366f1); padding: 40px 20px; text-align: center;">
+                ' . $data['site_logo'] . '
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 300;">
+                    ' . __('E-posta Doğrulama Kodu', 'email-verification-forms') . '
+                </h1>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 20px;">
+                <p style="font-size: 16px; line-height: 1.6; color: #374151; margin-bottom: 30px;">
+                    ' . $welcome_text . '
+                </p>
+                
+                <!-- Verification Code -->
+                <div style="text-align: center; margin: 40px 0;">
+                    <div style="background: #f8fafc; border: 3px dashed ' . esc_attr($data['primary_color']) . '; border-radius: 12px; padding: 30px; display: inline-block; min-width: 200px;">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+                            ' . __('Doğrulama Kodu', 'email-verification-forms') . '
+                        </div>
+                        <div style="font-size: 36px; font-weight: bold; color: ' . esc_attr($data['primary_color']) . '; letter-spacing: 6px; font-family: monospace;">
+                            ' . esc_html($data['verification_code']) . '
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                    <h3 style="color: #374151; margin: 0 0 12px 0; font-size: 16px;">
+                        ' . __('Nasıl kullanılır:', 'email-verification-forms') . '
+                    </h3>
+                    <ol style="margin: 0; padding-left: 20px; color: #6b7280; line-height: 1.6;">
+                        <li style="margin-bottom: 8px;">' . __('Kayıt sayfasına geri dönün', 'email-verification-forms') . '</li>
+                        <li style="margin-bottom: 8px;">' . __('Yukarıdaki 6 haneli kodu girin', 'email-verification-forms') . '</li>
+                        <li style="margin-bottom: 0;">' . __('Doğrula butonuna tıklayın', 'email-verification-forms') . '</li>
+                    </ol>
+                </div>
+                
+                <!-- Expiry Warning -->
+                <div style="border-left: 4px solid #f59e0b; background-color: #fffbeb; padding: 16px; margin: 30px 0;">
+                    <p style="font-size: 14px; color: #92400e; margin: 0;">
+                        <strong>' . __('Önemli:', 'email-verification-forms') . '</strong> 
+                        ' . $expiry_text . '
+                    </p>
+                </div>
+                
+                <!-- Security Note -->
+                <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                    <p style="font-size: 14px; color: #991b1b; margin: 0;">
+                        <strong>🔒 ' . __('Güvenlik:', 'email-verification-forms') . '</strong> 
+                        ' . __('Bu kodu kimseyle paylaşmayın. Sadece sizin kullanımınız için gönderilmiştir.', 'email-verification-forms') . '
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 30px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <p style="font-size: 14px; color: #6b7280; margin: 0 0 10px 0;">
+                    ' . $footer_text . '
+                </p>
+                <p style="font-size: 12px; color: #9ca3af; margin: 0;">
+                    <a href="' . esc_url($data['site_url']) . '" style="color: ' . esc_attr($data['primary_color']) . '; text-decoration: none;">
+                        ' . esc_html($data['site_url']) . '
+                    </a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>';
+    }
 }

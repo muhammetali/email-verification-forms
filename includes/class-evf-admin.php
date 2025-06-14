@@ -32,6 +32,7 @@ class EVF_Admin {
         add_action('admin_init', array($this, 'admin_init'));
         add_action('wp_ajax_evf_test_email', array($this, 'ajax_test_email'));
         add_action('wp_ajax_evf_export_data', array($this, 'ajax_export_data'));
+        add_action('wp_ajax_evf_get_registration_details', array($this, 'ajax_get_registration_details'));
 
         // Alt sınıfları yükle
         $this->load_sub_classes();
@@ -345,5 +346,171 @@ class EVF_Admin {
 
         fclose($output);
         exit;
+    }
+
+    public function ajax_get_registration_details() {
+        if (!wp_verify_nonce($_POST['nonce'], 'evf_admin_nonce')) {
+            wp_send_json_error('invalid_nonce');
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('insufficient_permissions');
+        }
+
+        $registration_id = intval($_POST['id']);
+
+        if (!$registration_id) {
+            wp_send_json_error('invalid_id');
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'evf_pending_registrations';
+
+        // Kayıt detaylarını getir
+        $registration = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE id = %d",
+            $registration_id
+        ));
+
+        if (!$registration) {
+            wp_send_json_error('registration_not_found');
+        }
+
+        // HTML oluştur
+        $html = $this->generate_registration_details_html($registration);
+
+        wp_send_json_success(array('html' => $html));
+    }
+
+    /**
+     * Kayıt detayları HTML'ini oluştur
+     */
+    private function generate_registration_details_html($registration) {
+        $status_labels = array(
+            'pending' => __('Bekleyen', 'email-verification-forms'),
+            'email_verified' => __('Email Doğrulandı', 'email-verification-forms'),
+            'completed' => __('Tamamlandı', 'email-verification-forms'),
+            'expired' => __('Süresi Doldu', 'email-verification-forms')
+        );
+
+        $status_label = isset($status_labels[$registration->status]) ? $status_labels[$registration->status] : $registration->status;
+
+        ob_start();
+        ?>
+        <div class="evf-registration-details">
+            <table class="evf-details-table" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold; width: 30%;">
+                        <?php esc_html_e('ID', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        #<?php echo esc_html($registration->id); ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('E-posta', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        <strong><?php echo esc_html($registration->email); ?></strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('Durum', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                    <span class="evf-status evf-status-<?php echo esc_attr($registration->status); ?>">
+                        <?php echo esc_html($status_label); ?>
+                    </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('IP Adresi', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        <?php echo esc_html($registration->ip_address); ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('User Agent', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd; word-break: break-all; font-size: 12px;">
+                        <?php echo esc_html($registration->user_agent); ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('Oluşturulma Tarihi', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        <?php echo esc_html(date_i18n('d.m.Y H:i:s', strtotime($registration->created_at))); ?>
+                    </td>
+                </tr>
+                <?php if ($registration->email_verified_at): ?>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                            <?php esc_html_e('Email Doğrulama', 'email-verification-forms'); ?>
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <?php echo esc_html(date_i18n('d.m.Y H:i:s', strtotime($registration->email_verified_at))); ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+                <?php if ($registration->completed_at): ?>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                            <?php esc_html_e('Tamamlanma', 'email-verification-forms'); ?>
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <?php echo esc_html(date_i18n('d.m.Y H:i:s', strtotime($registration->completed_at))); ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('Son Geçerlilik', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        <?php echo esc_html(date_i18n('d.m.Y H:i:s', strtotime($registration->expires_at))); ?>
+                        <?php if (strtotime($registration->expires_at) < time()): ?>
+                            <span style="color: #dc3545; font-weight: bold;">(Süresi Dolmuş)</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                        <?php esc_html_e('Token', 'email-verification-forms'); ?>
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-family: monospace; font-size: 11px; word-break: break-all;">
+                        <?php echo esc_html(substr($registration->token, 0, 16) . '...'); ?>
+                    </td>
+                </tr>
+                <?php if ($registration->user_id): ?>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; font-weight: bold;">
+                            <?php esc_html_e('Kullanıcı ID', 'email-verification-forms'); ?>
+                        </td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">
+                            <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $registration->user_id)); ?>" target="_blank">
+                                #<?php echo esc_html($registration->user_id); ?>
+                            </a>
+                        </td>
+                    </tr>
+                <?php endif; ?>
+            </table>
+
+            <?php if ($registration->status === 'pending'): ?>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button type="button" class="button button-primary evf-resend-email" data-email="<?php echo esc_attr($registration->email); ?>">
+                        📧 <?php esc_html_e('Doğrulama E-postası Gönder', 'email-verification-forms'); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
